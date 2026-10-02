@@ -1,0 +1,19 @@
+component io_demux
+    inputs
+        u = {zeros(5, 1), '1'};
+    end
+    outputs
+        v_ref = {0, 'm/s'};
+        grade = {0, '1'};
+        P_aux = {0, 'W'};
+        P_chg = {0, 'W'};
+        en = {0, '1'};
+    end
+    equations
+        v_ref == u(1)*{0.44704, 'm/s'};
+        grade == u(2);
+        P_aux == u(3)*{1, 'W'};
+        P_chg == u(4)*{1, 'W'};
+        en == u(5);
+    end
+end

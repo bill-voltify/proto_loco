@@ -1,0 +1,6 @@
+slprj/
+*.slxc
+*.asv
+*.autosave
+*_lib.slx
+proto_loco.slx

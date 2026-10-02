@@ -1,0 +1,43 @@
+component lcc_proxy
+    inputs
+        v_ref = {0, 'm/s'};
+        v = {0, 'm/s'};
+        Vbat = {0, 'V'};
+    end
+    outputs
+        TE_ax = {0, 'N'};
+        F_fric = {0, 'N'};
+    end
+    parameters
+        Kp_v = {4e5, 'N*s/m'};
+        Ki_v = {6e4, 'N/m'};
+        N_ax = {4, '1'};
+        TE_adh = {3e5, 'N'};
+        P_trac_max = {2.144e6, 'W'};
+        I_dis_max = {1884, 'A'};
+        I_chg_max = {1884, 'A'};
+        eta_drv = {0.88, '1'};
+        v_floor = {0.5, 'm/s'};
+        v_blend = {1.5, 'm/s'};
+    end
+    variables
+        xi = {0, 'N'};
+    end
+    equations
+        let
+            e = v_ref - v;
+            TE_raw = Kp_v*e + xi;
+            vabs = max(abs(v), v_floor);
+            P_dis = min(P_trac_max, I_dis_max*Vbat*eta_drv);
+            P_reg = min(P_trac_max, I_chg_max*Vbat/eta_drv);
+            TE_mot_lim = min(TE_adh, P_dis/vabs);
+            TE_reg_lim = min(TE_adh, P_reg/vabs)*min(abs(v)/v_blend, 1);
+            TE_cmd = min(max(TE_raw, -TE_adh), TE_mot_lim);
+            TE_el = max(TE_cmd, -TE_reg_lim);
+        in
+            der(xi) == if v_ref < {0.01, 'm/s'} && abs(v) < {0.05, 'm/s'}, -xi/{1, 's'} elseif (TE_raw > TE_mot_lim && e > {0, 'm/s'}) || (TE_raw < -TE_adh && e < {0, 'm/s'}), {0, 'N/s'} else Ki_v*e end;
+            TE_ax == TE_el/N_ax;
+            F_fric == TE_el - TE_cmd;
+        end
+    end
+end

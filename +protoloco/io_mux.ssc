@@ -1,0 +1,22 @@
+component io_mux
+    inputs
+        v = {0, 'm/s'};
+        soc = {0, '1'};
+        vt = {0, 'V'};
+        ib = {0, 'A'};
+        vlink = {0, 'V'};
+        ia = {0, 'A'};
+        va = {0, 'V'};
+        te = {0, 'N'};
+        ff = {0, 'N'};
+        pa = {0, 'W'};
+        pc = {0, 'W'};
+        idc = {0, 'A'};
+    end
+    outputs
+        y = {zeros(12, 1), '1'};
+    end
+    equations
+        y == [v/{0.44704, 'm/s'}; soc; vt/{1, 'V'}; ib/{1, 'A'}; vlink/{1, 'V'}; ia/{1, 'A'}; va/{1, 'V'}; te/{1, 'N'}; ff/{1, 'N'}; pa/{1, 'W'}; pc/{1, 'W'}; idc/{1, 'A'}];
+    end
+end

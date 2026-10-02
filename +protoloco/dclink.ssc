@@ -1,0 +1,40 @@
+component dclink
+    nodes
+        p = foundation.electrical.electrical;
+        q = foundation.electrical.electrical;
+        n = foundation.electrical.electrical;
+    end
+    inputs
+        en = {0, '1'};
+    end
+    outputs
+        vlink = {0, 'V'};
+    end
+    parameters
+        R_pre = {4, 'Ohm'};
+        R_on = {0.5e-3, 'Ohm'};
+        R_off = {1e6, 'Ohm'};
+        C = {0.02, 'F'};
+        k_close = {0.95, '1'};
+        V_guard = {100, 'V'};
+    end
+    variables
+        i_s = {0, 'A'};
+        i_c = {0, 'A'};
+        v_c = {0, 'V'};
+    end
+    branches
+        i_s : p.i -> q.i;
+        i_c : q.i -> n.i;
+    end
+    equations
+        v_c == q.v - n.v;
+        i_c == C*der(v_c);
+        let
+            R = if en < 0.5, R_off elseif v_c >= k_close*(p.v - n.v) && v_c > V_guard, R_on else R_pre end;
+        in
+            i_s*R == p.v - q.v;
+        end
+        vlink == v_c;
+    end
+end

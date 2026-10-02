@@ -1,0 +1,49 @@
+component battery
+    nodes
+        p = foundation.electrical.electrical;
+        n = foundation.electrical.electrical;
+    end
+    outputs
+        soc = {0, '1'};
+        vt = {0, 'V'};
+        ib = {0, 'A'};
+    end
+    parameters
+        Ns = {416, '1'};
+        Np = {12, '1'};
+        Q_cell = {314, 'A*hr'};
+        R0_cell = {0.5e-3, 'Ohm'};
+        R1_cell = {0.3e-3, 'Ohm'};
+        tau1 = {30, 's'};
+        R_bus = {5e-3, 'Ohm'};
+        soc0 = {0.9, '1'};
+        SOC_tab = {[0 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.95 1], '1'};
+        OCV_tab = {[2.90 3.10 3.18 3.22 3.25 3.27 3.29 3.30 3.31 3.33 3.35 3.40 3.55], 'V'};
+    end
+    parameters (Access = private)
+        Q = Np*Q_cell;
+        R0 = Ns*R0_cell/Np + R_bus;
+        R1 = Ns*R1_cell/Np;
+        C1 = tau1/R1;
+    end
+    variables
+        i = {0, 'A'};
+        z = {0.9, '1'};
+        v1 = {0, 'V'};
+    end
+    branches
+        i : n.i -> p.i;
+    end
+    equations (Initial = true)
+        z == soc0;
+        v1 == {0, 'V'};
+    end
+    equations
+        p.v - n.v == Ns*tablelookup(SOC_tab, OCV_tab, z, interpolation = linear, extrapolation = nearest) - i*R0 - v1;
+        der(v1) == i/C1 - v1/(R1*C1);
+        der(z) == -i/Q;
+        soc == z;
+        vt == p.v - n.v;
+        ib == i;
+    end
+end

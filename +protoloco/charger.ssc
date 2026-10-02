@@ -1,0 +1,27 @@
+component charger
+    nodes
+        p = foundation.electrical.electrical;
+        n = foundation.electrical.electrical;
+    end
+    inputs
+        P = {0, 'W'};
+    end
+    outputs
+        p_out = {0, 'W'};
+    end
+    parameters
+        P_max = {3.3e6, 'W'};
+        I_max = {2500, 'A'};
+        V_floor = {100, 'V'};
+    end
+    variables
+        i = {0, 'A'};
+    end
+    branches
+        i : n.i -> p.i;
+    end
+    equations
+        i == min(min(max(P, {0, 'W'}), P_max)/max(p.v - n.v, V_floor), I_max);
+        p_out == i*(p.v - n.v);
+    end
+end
