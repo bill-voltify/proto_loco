@@ -26,6 +26,7 @@ component locomotive
         OCV_tab = {[2.90 3.10 3.18 3.22 3.25 3.27 3.29 3.30 3.31 3.33 3.35 3.40 3.55], 'V'};
         R_pre = {4, 'Ohm'};
         C_link = {0.02, 'F'};
+        k_close = {0.99, '1'};
         G_ratio = {4.1333, '1'};
         r_w = {0.508, 'm'};
         eta_g = {0.97, '1'};
@@ -61,7 +62,7 @@ component locomotive
     end
     components (ExternalAccess = observe)
         bat = protoloco.battery(Ns = Ns, Np = Np, Q_cell = Q_cell, R0_cell = R0_cell, R1_cell = R1_cell, tau1 = tau1, R_bus = R_bus, soc0 = soc0, SOC_tab = SOC_tab, OCV_tab = OCV_tab);
-        dcl = protoloco.dclink(R_pre = R_pre, C = C_link);
+        dcl = protoloco.dclink(R_pre = R_pre, C = C_link, k_close = k_close);
         ax1 = protoloco.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, Kphi_sat = Kphi_sat, I0 = I0, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
         ax2 = protoloco.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, Kphi_sat = Kphi_sat, I0 = I0, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
         ax3 = protoloco.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, Kphi_sat = Kphi_sat, I0 = I0, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);

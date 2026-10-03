@@ -32,7 +32,7 @@ map = {
     'Ns','P.batt.Ns'; 'Np','P.batt.Np'; 'Q_cell','P.batt.Q_cell'; 'R0_cell','P.batt.R0_cell';
     'R1_cell','P.batt.R1_cell'; 'tau1','P.batt.tau1'; 'R_bus','P.batt.R_bus'; 'soc0','P.batt.soc0';
     'SOC_tab','P.batt.SOC_tab'; 'OCV_tab','P.batt.OCV_tab';
-    'R_pre','P.dcl.R_pre'; 'C_link','P.dcl.C_link';
+    'R_pre','P.dcl.R_pre'; 'C_link','P.dcl.C_link'; 'k_close','P.dcl.k_close';
     'G_ratio','P.ax.G'; 'r_w','P.ax.r_w'; 'eta_g','P.ax.eta_g'; 'R_m','P.ax.R_m'; 'L_a','P.ax.L_a';
     'Kphi_sat','P.ax.Kphi_sat'; 'I0','P.ax.I0'; 'If_min','P.ax.If_min'; 'I_max','P.ax.I_max';
     'V_mot_max','P.ax.V_mot_max'; 'P_ax_max','P.ax.P_ax_max'; 'Kp_i','P.ax.Kp_i';
