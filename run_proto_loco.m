@@ -2,6 +2,8 @@ root = fileparts(mfilename('fullpath'));
 addpath(root);
 mdl = build_proto_loco();
 out = sim(mdl, 'ReturnWorkspaceOutputs', 'on');
+
+
 Y = out.Y;
 t = Y.Time;
 d = squeeze(Y.Data);
@@ -29,3 +31,7 @@ fprintf('Peak I_a per axle    : %.0f A (D77 cont 1050)\n', max(abs(R.ia)));
 fprintf('Peak TE (4 axles)    : %.0f kN\n', 4*max(R.te_ax)/1e3);
 fprintf('Energy out / in      : %.1f / %.1f kWh\n', E_dis, E_chg);
 fprintf('SOC start / end      : %.2f / %.2f %%\n', 100*R.soc(1), 100*R.soc(end));
+if isprop(out,'simlog') || any(strcmp(out.who,'simlog'))
+    assignin('base','simlog',out.simlog);
+    sscexplore(out.simlog)
+end

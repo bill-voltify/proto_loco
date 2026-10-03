@@ -67,6 +67,7 @@ try
 catch
     set_param(mdl, 'Solver', 'ode23t');
 end
+set_param(mdl, 'SimscapeLogType', 'all', 'SimscapeLogName', 'simlog');
 save_system(mdl, f);
 end
 
