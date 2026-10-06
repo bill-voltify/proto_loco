@@ -8,6 +8,7 @@ component vehicle
     end
     outputs
         v = {0, 'm/s'};
+        q_brk = {0, 'W'};
     end
     parameters
         r_w = {0.508, 'm'};
@@ -35,6 +36,7 @@ component vehicle
         in
             t == m_eff*r_w^2*der(w) + F*r_w;
             v == vv;
+            q_brk == F_brake*s*vv;
         end
     end
 end

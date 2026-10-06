@@ -7,6 +7,8 @@ component battery
         soc = {0, '1'};
         vt = {0, 'V'};
         ib = {0, 'A'};
+        q_cell = {0, 'W'};
+        q_bus = {0, 'W'};
     end
     parameters
         Ns = {416, '1'};
@@ -45,5 +47,7 @@ component battery
         soc == z;
         vt == p.v - n.v;
         ib == i;
+        q_cell == i^2*(R0 - R_bus) + v1^2/R1;
+        q_bus == i^2*R_bus;
     end
 end

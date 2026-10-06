@@ -9,6 +9,7 @@ component dclink
     end
     outputs
         vlink = {0, 'V'};
+        q_pre = {0, 'W'};
     end
     parameters
         R_pre = {4, 'Ohm'};
@@ -36,5 +37,6 @@ component dclink
             i_s*R == p.v - q.v;
         end
         vlink == v_c;
+        q_pre == (p.v - q.v)*i_s;
     end
 end

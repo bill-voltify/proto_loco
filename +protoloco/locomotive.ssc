@@ -7,10 +7,12 @@ component locomotive
     end
     outputs
         y = {zeros(12, 1), '1'};
+        Q = {zeros(10, 1), '1'};
     end
     annotations
         u : Side = left;
         y : Side = right;
+        Q : Side = top;
         REF : Side = bottom;
     end
     parameters
@@ -52,6 +54,7 @@ component locomotive
         P_aux_max = {250e3, 'W'};
         P_chg_max = {3.3e6, 'W'};
         I_chg_hw = {2500, 'A'};
+        eta_chg = {0.97, '1'};
         Kp_v = {4e5, 'N*s/m'};
         Ki_v = {6e4, 'N/m'};
         mu_adh = {0.25, '1'};
@@ -69,10 +72,11 @@ component locomotive
         ax4 = protoloco.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, Kphi_sat = Kphi_sat, I0 = I0, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
         veh = protoloco.vehicle(r_w = r_w, m_tot = m_tot, m_eff = m_eff, Crr = Crr, CdA = CdA);
         aux = protoloco.auxload(eta = eta_aux, P_max = P_aux_max);
-        chg = protoloco.charger(P_max = P_chg_max, I_max = I_chg_hw);
+        chg = protoloco.charger(P_max = P_chg_max, I_max = I_chg_hw, eta = eta_chg);
         lcc = protoloco.lcc_proxy(Kp_v = Kp_v, Ki_v = Ki_v, TE_adh = mu_adh*m_loco*{9.81, 'm/s^2'}, P_trac_max = P_trac_max, I_dis_max = I_dis_max, I_chg_max = I_chg_max, eta_drv = eta_drv);
         dmx = protoloco.io_demux;
         mux = protoloco.io_mux;
+        hx = protoloco.io_heat;
         gnd = foundation.electrical.elements.reference;
     end
     connections
@@ -99,5 +103,24 @@ component locomotive
         connect(aux.p_in, mux.pa);
         connect(chg.p_out, mux.pc);
         connect(mux.y, y);
+        connect(bat.q_cell, hx.q_cell);
+        connect(bat.q_bus, hx.q_bus);
+        connect(dcl.q_pre, hx.q_pre);
+        connect(ax1.q_chop, hx.ch1);
+        connect(ax2.q_chop, hx.ch2);
+        connect(ax3.q_chop, hx.ch3);
+        connect(ax4.q_chop, hx.ch4);
+        connect(ax1.q_cu, hx.cu1);
+        connect(ax2.q_cu, hx.cu2);
+        connect(ax3.q_cu, hx.cu3);
+        connect(ax4.q_cu, hx.cu4);
+        connect(ax1.q_gear, hx.gr1);
+        connect(ax2.q_gear, hx.gr2);
+        connect(ax3.q_gear, hx.gr3);
+        connect(ax4.q_gear, hx.gr4);
+        connect(aux.q, hx.q_aux);
+        connect(chg.q, hx.q_chg);
+        connect(veh.q_brk, hx.q_brk);
+        connect(hx.Q, Q);
     end
 end

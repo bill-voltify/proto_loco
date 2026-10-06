@@ -11,6 +11,9 @@ component axle
         ia = {0, 'A'};
         va = {0, 'V'};
         idc = {0, 'A'};
+        q_chop = {0, 'W'};
+        q_cu = {0, 'W'};
+        q_gear = {0, 'W'};
     end
     parameters
         G = {4.1333, '1'};
@@ -63,6 +66,9 @@ component axle
             ia == i_a;
             va == Va;
             idc == i_dc;
+            q_chop == Ploss;
+            q_cu == R_m*i_a^2;
+            q_gear == abs(Tm*wm - Tax*W.w);
         end
     end
 end

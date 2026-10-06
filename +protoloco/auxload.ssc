@@ -8,6 +8,7 @@ component auxload
     end
     outputs
         p_in = {0, 'W'};
+        q = {0, 'W'};
     end
     parameters
         eta = {0.96, '1'};
@@ -26,6 +27,7 @@ component auxload
         in
             i*max(p.v - n.v, V_floor) == Pin;
             p_in == Pin;
+            q == Pin*(1 - eta);
         end
     end
 end

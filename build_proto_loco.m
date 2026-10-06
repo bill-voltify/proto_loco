@@ -20,6 +20,8 @@ addLib([mdl '/Loco'], {'nesl_utility/Simscape Component', sprintf('nesl_utility/
 addLib([mdl '/PS2S'], {sprintf('nesl_utility/PS-Simulink\nConverter'), 'nesl_utility/PS-Simulink Converter'}, [500 115 530 145]);
 addLib([mdl '/Solver'], {sprintf('nesl_utility/Solver\nConfiguration'), 'nesl_utility/Solver Configuration'}, [300 260 360 290]);
 add_block('simulink/Sinks/To Workspace', [mdl '/Y'], 'VariableName', 'Y', 'SaveFormat', 'Timeseries', 'Position', [580 115 660 145]);
+addLib([mdl '/PS2S_Q'], {sprintf('nesl_utility/PS-Simulink\nConverter'), 'nesl_utility/PS-Simulink Converter'}, [335 10 365 40]);
+add_block('simulink/Sinks/To Workspace', [mdl '/Qout'], 'VariableName', 'Q', 'SaveFormat', 'Timeseries', 'Position', [420 10 500 40]);
 
 blk = [mdl '/Loco'];
 try
@@ -39,7 +41,7 @@ map = {
     'a_loss','P.ax.a_loss'; 'b_loss','P.ax.b_loss'; 'I_tab','P.ax.I_tab'; 'T_tab','P.ax.T_tab';
     'm_loco','P.veh.m_loco'; 'm_tot','P.veh.m_tot'; 'm_eff','P.veh.m_eff'; 'Crr','P.veh.Crr'; 'CdA','P.veh.CdA';
     'eta_aux','P.aux.eta'; 'P_aux_max','P.aux.P_max';
-    'P_chg_max','P.chg.P_max'; 'I_chg_hw','P.chg.I_hw';
+    'P_chg_max','P.chg.P_max'; 'I_chg_hw','P.chg.I_hw'; 'eta_chg','P.chg.eta';
     'Kp_v','P.lcc.Kp_v'; 'Ki_v','P.lcc.Ki_v'; 'mu_adh','P.lcc.mu_adh'; 'P_trac_max','P.lcc.P_trac_max';
     'I_dis_max','P.lcc.I_dis_max'; 'I_chg_max','P.lcc.I_chg_max'; 'eta_drv','P.lcc.eta_drv'};
 for k = 1:size(map, 1)
@@ -53,13 +55,16 @@ end
 phS = get_param([mdl '/S2PS'], 'PortHandles');
 phP = get_param([mdl '/PS2S'], 'PortHandles');
 phV = get_param([mdl '/Solver'], 'PortHandles');
-[hU, hY, hREF] = locoPorts(blk);
+phQ = get_param([mdl '/PS2S_Q'], 'PortHandles');
+[hU, hY, hREF, hQ] = locoPorts(blk);
 
 add_line(mdl, 'U/1', 'S2PS/1');
 add_line(mdl, phS.RConn(1), hU);
 add_line(mdl, hY, phP.LConn(1));
 add_line(mdl, 'PS2S/1', 'Y/1');
 add_line(mdl, phV.RConn(1), hREF);
+add_line(mdl, hQ, phQ.LConn(1));
+add_line(mdl, 'PS2S_Q/1', 'Qout/1');
 
 set_param(mdl, 'StopTime', num2str(D.t_end), 'MaxStep', '0.5', 'RelTol', '1e-4');
 try
@@ -68,6 +73,7 @@ catch
     set_param(mdl, 'Solver', 'ode23t');
 end
 set_param(mdl, 'SimscapeLogType', 'all', 'SimscapeLogName', 'simlog');
+try, set_param(mdl, 'SimscapeLogDecimation', 20); catch, end
 save_system(mdl, f);
 end
 
@@ -82,14 +88,16 @@ end
 error('Library block not found for %s', dst);
 end
 
-function [hL, hR, hB] = locoPorts(blk)
+function [hL, hR, hB, hT] = locoPorts(blk)
 ph = get_param(blk, 'PortHandles');
 h = [ph.LConn(:); ph.RConn(:)];
-assert(numel(h) == 3, 'Expected 3 physical ports on %s, found %d', blk, numel(h));
+assert(numel(h) == 4, 'Expected 4 physical ports on %s, found %d', blk, numel(h));
 pos = cell2mat(arrayfun(@(x) get_param(x, 'Position'), h, 'UniformOutput', false));
 [~, iB] = max(pos(:,2));
+[~, iT] = min(pos(:,2));
 hB = h(iB);
-r = setdiff(1:3, iB);
+hT = h(iT);
+r = setdiff(1:4, [iB iT]);
 [~, a] = min(pos(r,1));
 [~, b] = max(pos(r,1));
 hL = h(r(a));

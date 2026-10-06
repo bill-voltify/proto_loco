@@ -45,6 +45,11 @@ P.aux.P_max = 250e3;
 
 P.chg.P_max = 3.3e6;
 P.chg.I_hw = 2500;
+P.chg.eta = 0.97;
+
+P.cool.BTMS_W = 60e3;
+P.cool.chop_W = 4*5.25e3;
+P.cool.PE_W = NaN;
 
 P.lcc.mu_adh = 0.25;
 P.lcc.P_trac_max = 4*536e3;
