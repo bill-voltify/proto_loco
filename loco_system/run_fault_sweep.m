@@ -52,6 +52,9 @@ else
 end
 T = struct2table([res{:}]');
 
+T.by_design_stop = ismember(T.channel, by_design);
+lvl = containers.Map({'OPTIMAL','OK','DERATED','FAIL','ERROR'}, {4, 3, 2, 1, 0});
+T.severity = cellfun(@(v) lvl(char(v)), cellstr(T.verdict));
 % deltas vs baseline at the same ambient
 for v = {'dSOC_end','dTchop_max','dTinv_max','dTcell_max','dTmotor_max'}, T.(v{1}) = nan(height(T), 1); end
 for i = 1:height(T)
@@ -62,9 +65,35 @@ for i = 1:height(T)
     T.dTcell_max(i) = T.Tcell_max(i) - b.Tcell_max(1);
     T.dTmotor_max(i) = T.Tmotor_max(i) - b.Tmotor_max(1);
 end
-T.by_design_stop = ismember(T.channel, by_design);
-lvl = containers.Map({'OPTIMAL','OK','DERATED','FAIL','ERROR'}, {4, 3, 2, 1, 0});
-T.severity = cellfun(@(v) lvl(char(v)), cellstr(T.verdict));
+
+% relative-to-baseline class (v2): judges each fault against the no-fault run at the same ambient
+%   WORSE: new limit, lower verdict, or first limit > 0.25 h earlier | WATCH: no new limit but large rise
+%   (chopper/inverter > 10 K, cell > 2 K, motor > 30 K) | MASKED: better verdict only because cooling ran less
+%   TRADE-OFF: better verdict at a functional cost | SAME | BY-DESIGN: designed stop
+masking = ["n_mtm","dT_sense_K","aux_ok"];
+T.rel_baseline = strings(height(T), 1);
+T.new_limits = strings(height(T), 1);
+for i = 1:height(T)
+    b = T(T.fault == "BASELINE" & T.T_amb == T.T_amb(i), :);
+    nl = setdiff(split_limits(T.limit(i)), split_limits(b.limit(1)));
+    tb = b.t_first_limit_h(1); if isnan(tb), tb = inf; end
+    tr = T.t_first_limit_h(i); if isnan(tr), tr = inf; end
+    if T.by_design_stop(i)
+        rel = "BY-DESIGN";
+    elseif T.fault(i) == "BASELINE"
+        rel = "BASELINE";
+    elseif ~isempty(nl) || T.severity(i) < b.severity(1) || tr < tb - 0.25
+        rel = "WORSE";
+    elseif T.dTchop_max(i) > 10 || T.dTinv_max(i) > 10 || T.dTcell_max(i) > 2 || T.dTmotor_max(i) > 30
+        rel = "WATCH";
+    elseif T.severity(i) > b.severity(1)
+        if ismember(T.channel(i), masking), rel = "MASKED"; else, rel = "TRADE-OFF"; end
+    else
+        rel = "SAME";
+    end
+    T.rel_baseline(i) = rel;
+    T.new_limits(i) = strjoin(nl, '; ');
+end
 t_rank = T.t_first_limit_h; t_rank(isnan(t_rank)) = inf;
 [~, ord] = sortrows([T.severity, t_rank, -double(T.T_amb)]);
 T = T(ord, :);
@@ -91,7 +120,32 @@ set(gca, 'XTick', 1:numel(o.Ambients), 'XTickLabel', compose('%d C', o.Ambients)
          'YTick', 1:numel(faults), 'YTickLabel', strrep(cellstr(faults), '_', '\_'));
 cb = colorbar; cb.Ticks = 0:4; cb.TickLabels = {'ERROR','FAIL','DERATED','OK','OPTIMAL'};
 title(sprintf('Fault sweep: %s, onset %.1f h', o.Trace, o.Onset_s/3600), 'Interpreter', 'none');
-disp(T(:, {'fault','fmea','T_amb','verdict','first_limit','t_first_limit_h','dSOC_end','dTchop_max','dTinv_max','dTcell_max','by_design_stop'}));
+% relative-to-baseline heatmap
+rl = containers.Map({'WORSE','WATCH','SAME','MASKED','TRADE-OFF','BY-DESIGN','BASELINE'}, {1, 2, 3, 4, 4, 5, 3});
+Z2 = nan(numel(faults), numel(o.Ambients));
+for i = 1:numel(faults)
+    for a = 1:numel(o.Ambients)
+        r = T(T.fault == faults(i) & T.T_amb == o.Ambients(a), :);
+        if ~isempty(r), Z2(i, a) = rl(char(r.rel_baseline(1))); end
+    end
+end
+figure('Name', 'Fault sweep vs baseline', 'Position', [820 80 700 60 + 22*numel(faults)]);
+imagesc(Z2, [1 5]);
+colormap([0.85 0.2 0.2; 0.95 0.65 0.1; 0.75 0.75 0.75; 0.55 0.75 0.95; 0.6 0.6 0.85]);
+set(gca, 'XTick', 1:numel(o.Ambients), 'XTickLabel', compose('%d C', o.Ambients), ...
+         'YTick', 1:numel(faults), 'YTickLabel', strrep(cellstr(faults), '_', '\_'));
+cb = colorbar; cb.Ticks = 1:5; cb.TickLabels = {'WORSE','WATCH','SAME','MASKED / TRADE-OFF','BY-DESIGN'};
+title('Fault effect relative to no-fault baseline');
+disp(T(:, {'fault','fmea','T_amb','verdict','rel_baseline','new_limits','first_limit','t_first_limit_h','dSOC_end','dTchop_max','dTinv_max','dTcell_max','by_design_stop'}));
+end
+
+function L = split_limits(s)
+if ismissing(s) || strlength(s) == 0
+    L = strings(0, 1);
+    return
+end
+L = strtrim(split(string(s), ';'));
+L = L(strlength(L) > 0 & ~startsWith(L, 'PE margin') & ~contains(L, 'outside'));
 end
 
 function r = sweep_one(j, o)
