@@ -3,7 +3,7 @@ function RUN = run_loco_system(trace, varargin)
 %   RUN = run_loco_system('traces/example_yard_day_8h.csv')
 %   RUN = run_loco_system(trace, 'Faults', 'faults/example_hot_day_faults.csv', 'Ambient_C', 40)
 % Name-value options:
-%   Faults          fault table file (default faults/none.csv)
+%   Faults          fault table file or table (default faults/none.csv)
 %   Budget          load budget file (default load_budget.csv)
 %   Ambient_C       constant ambient override (C); [] = use the trace column
 %   AmbientOffset_C add to the trace ambient (C)
@@ -39,8 +39,12 @@ if ischar(trace) || isstring(trace)
 else
     TR = load_trace(trace, struct('ambient_C', o.Ambient_C, 'ambient_offset_C', o.AmbientOffset_C));
 end
-ff = char(o.Faults); if ~isfile(ff), ff = fullfile(here, ff); end
-F = load_fault_table(ff);
+if istable(o.Faults)
+    F = load_fault_table(o.Faults);
+else
+    ff = char(o.Faults); if ~isfile(ff), ff = fullfile(here, ff); end
+    F = load_fault_table(ff);
+end
 P = loco_system_params(struct('T_amb_C', TR.ambient0_C, 'T0_C', o.T0_C, 'soc0', o.soc0, ...
     'I_chg_bms', o.I_chg_bms, 'bms', o.bms));
 FLT = build_fault_matrix(F, TR.t_end, P);

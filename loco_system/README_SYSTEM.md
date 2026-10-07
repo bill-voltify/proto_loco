@@ -61,6 +61,15 @@ Copy rows into a run file and set `enabled = 1`, `t_start_s`, `t_end_s`. Channel
 | AUX_DCDC_TRIP | Aux budget loads and TMS lost |
 | CHARGER_DERATE_50 | Charge power × 0.5 |
 
+## Fault sweep (DVP C-21)
+
+```matlab
+T = run_fault_sweep();                                   % every library fault x [20 40 45] C on traces/fault_test_3h.csv
+T = run_fault_sweep('Ambients', 40, 'Faults', {'PE_FAN_FAIL','MTM_LOSS_1'});
+T = run_fault_sweep('Parallel', true);                   % parfor workers
+```
+Each fault is applied alone from 0.5 h to the end of a 3 h heavy-duty trace (LC-3 / LC-2 pulls at 6–8 mph on 0.3–0.5 % grade, one 30 min 2.5 MW charge), pack preconditioned to 25 °C. Output: `results/fault_sweep_<stamp>.csv` ranked by severity then time to first limit, deltas vs the no-fault baseline, and a heatmap. `by_design_stop = true` marks faults whose expected response is to stop (comms loss, Class A, E-Stop).
+
 ## Notes and limits
 - Plant equations are the Phase 2 equations plus the fault/ambient inputs; Phase 2 limitations apply (MODEL_NOTES.md).
 - Controls run at 1 s (`P.sys.Ts_ctrl`).
