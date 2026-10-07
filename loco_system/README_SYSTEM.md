@@ -16,10 +16,11 @@ A team-facing system model built like the MathWorks EV reference examples: visib
 
 ```matlab
 cd loco_system
-build_loco_system                                   % once, or after editing +locosys
+build_loco_system                                   % once, after editing +locosys, and after this update (Power Budget block changed)
 RUN = run_loco_system('traces/example_yard_day_8h.csv');
 RUN = run_loco_system('traces/example_yard_day_8h.csv', 'Faults', 'faults/example_hot_day_faults.csv', 'AmbientOffset_C', 8);
 RUN = run_loco_system('traces/S3_dyncharge_2p5MW.csv', 'Ambient_C', 40, 'T0_C', 25, 'soc0', 0.2);
+RUN = run_loco_system('traces/S8_park_6h.csv', 'Ambient_C', 0, 'UseBudget', true);   % S1-S8 traces on the POC budget
 T   = run_regression_phase2([20 50], {'precond'});  % quick regression vs Phase 2
 ```
 
@@ -36,13 +37,17 @@ T   = run_regression_phase2([20 50], {'precond'});  % quick regression vs Phase 
 | `trailing_tons` | short tons | 0 |
 | `state` | SLEEP / STANDBY / READY / TRACTION / CHARGING | automatic (SLEEP < 2 s; CHARGING if wire_kW > 0; TRACTION if speed > 0; else READY) |
 | `wire_kW` | kW available from the wire | 0 |
-| `aux_override_kW` | kW; blank = use the load budget | blank |
+| `aux_override_kW` | kW; blank = use the load budget (S1–S8 carry Phase 2 values for regression; `UseBudget`, true ignores them) | blank |
 
-Rows are breakpoints; numeric columns are interpolated, `state` holds until the next row. Logged field data (Data Logging tab, H-32) can be converted to this format and replayed.
+Rows are breakpoints; numeric columns are interpolated, `state` holds until the next row. Blank states are evaluated on a 1 s grid from the interpolated speed and wire power. Logged field data (Data Logging tab, H-32) can be converted to this format and replayed.
 
-## Load budget (`load_budget.csv`)
+## Load budget (`load_budget.csv`) — baseline: Micah's POC Power Budget Rev B
 
-One row per auxiliary load: bus (750V, 72V, 24V, 12V, 220VAC), kW in each state, plus `moving_kW` added while moving in TRACTION/CHARGING. Seeded from the architecture doc auxiliary budget and the GP40-V spec. Thermal-management loads (chillers, heaters, HV fans, pumps) are computed by the plant thermal model, not the table. An AUX_DCDC_TRIP fault sheds every budget load.
+One row per auxiliary load, mapped to Micah's IDs (`micah_id`): bus (750V, 72V, 24V_Ctrl, 24V_BTMS, 12V_BTMS), nominal kW in each state, `moving_kW` added while moving in TRACTION/CHARGING, and `peak_kW` for reference. Power drawn at the 750 V bus = load ÷ conversion efficiency (750V 100 %, 72V 95 %, 24V_Ctrl 95 % × 88 %, 24V_BTMS 93 %, 12V_BTMS 93.5 %, per POC Power Budget). Thermal-management loads (MTM compressors, HVH120 heater, SPAL pumps, radiator fans) are computed by the plant thermal model, not the table. An AUX_DCDC_TRIP fault sheds every budget load.
+
+State mapping is ours (Micah's sheet has nominal and peak only): SLEEP = UPS hold + wake circuit; STANDBY = control electronics; READY/TRACTION/CHARGING add cab HVAC, exterior lights, brake compressor and HSCB holding; CHARGING adds charging contactors and raised pantographs; blowers run only while moving.
+
+Plant thermal parameters follow the same baseline (`loco_system_params`, `baseline = 'poc'`): heater 12 kW (1 × HVH120), 12 kW cooling per MTM, compressor COP 4 / 3 / 1.5 at 40 / 50 / 65 °C condenser supply (3 kW nominal, 8 kW peak per module), pumps 2.58 kW. Radiator fans stay EMP (KULI, 7 kW per bank) by decision 2026-10-08; Micah's sheet lists SPAL VA117 (RSK-NEW-35). `run_regression_phase2` uses `baseline = 'phase2'`.
 
 ## Fault library (`faults/fault_library.csv`)
 
@@ -60,6 +65,10 @@ Copy rows into a run file and set `enabled = 1`, `t_start_s`, `t_end_s`. Channel
 | BLOWER_FAIL | Motor cooling UA falls to 15 % |
 | AUX_DCDC_TRIP | Aux budget loads and TMS lost |
 | CHARGER_DERATE_50 | Charge power × 0.5 |
+| BTMS_24V_PS_TRIP (2 rows, one LRU) | All SPAL pumps: PE flow 5 %, battery-loop UA 20 % |
+| BTMS_12V_PS_TRIP | MTM ECUs and internal pumps lost: chillers off (LV radiator fans not modeled) |
+
+Rows sharing a `fault_id` are applied together, so one LRU failure can hit several channels.
 
 ## Fault sweep (DVP C-21)
 

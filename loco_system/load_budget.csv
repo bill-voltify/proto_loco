@@ -1,16 +1,22 @@
-load_id,name,bus,SLEEP,STANDBY,READY,TRACTION,CHARGING,FAULT,ESTOP,moving_kW,source
-L01,VMS / HVC zone (Premio; display; Starlink; gateway; RFID; VMS VIO; DC-link contactors),24V,0.05,0.17,0.17,0.25,0.25,0.17,0,0,Architecture doc aux budget (HVC 24 V); SLEEP = UPS hold
-L02,TRB electronics (ESMU; BCUs; BMMs; string contactor coils),24V,0,0.175,0.175,0.22,0.22,0.175,0,0,Architecture doc (TRB 24 V)
-L03,HVR controllers (panto ctrl; 3 VIOs; reverser),24V,0,0.035,0.035,0.10,0.10,0.035,0,0,Architecture doc (HVR 24 V)
-L04,Aux converter and inverter electronics,24V,0,0.05,0.05,0.08,0.08,0.05,0,0,Architecture doc (ACC 24 V)
-L05,MCS controllers (idle; MCS out of demo scope),24V,0,0.01,0.01,0.01,0.01,0.01,0,0,Architecture doc
-L06,Pantograph heads (sense; raised hold when charging),24V,0,0.015,0.015,0.015,0.2,0.015,0,0,Architecture doc; CHARGING hold = assumption
-L07,BTMS controls (12 V LV PS electronics; pumps and fans are in the thermal model),12V,0,0.03,0.03,0.2,0.2,0.03,0,0,Architecture doc (BTMS 12 V)
-L08,Locomotive control (cab computer; MCO position),72V,0,0.03,0.03,0.08,0.08,0.03,0,0,Architecture doc
-L09,Cab lights and displays,72V,0,0.08,0.08,0.2,0.2,0.08,0,0,Architecture doc
-L10,Wake circuit (always on),72V,0.005,0.005,0.005,0.005,0.005,0.005,0.005,0,Architecture doc
-L11,Cab HVAC (rooftop AC + strip heaters),220VAC,0,0,1.5,1.5,1.5,0,0,0,Assumption (GP40-V spec cab equipment)
-L12,Brake compressor NYAB V270 dual (average duty),220VAC,0,0,1.0,2.5,1.0,0,0,0,Assumption: 5 kW running at 20-50% duty
-L13,Traction motor blowers (2 x 30 HP),220VAC,0,0,0,0,0,0,0,44.7,GP40-V spec; on only when moving
-L14,AC inverters idle (x2),220VAC,0,0.04,0.04,0.04,0.04,0.04,0,0,Architecture doc (20 W each)
-L15,Onboard charger (ITV) electronics,24V,0,0,0,0,0.2,0,0,0,Assumption
+load_id,micah_id,name,bus,SLEEP,STANDBY,READY,TRACTION,CHARGING,FAULT,ESTOP,moving_kW,peak_kW,source
+L01,C24-01..07,HVC VMS and comms (Premio; HMI; UPS; Starlink; router; gateway; RFID),24V_Ctrl,0.05,0.155,0.155,0.155,0.155,0.155,0,0,0.29,POC Power Budget Rev B; SLEEP = UPS hold (arch doc)
+L02,C24-08..09,VMS VIO logic + DC-link and deep-sleep contactor coils,24V_Ctrl,0,0.022,0.022,0.022,0.022,0.022,0,0,0.105,POC Power Budget Rev B
+L03,C24-11..14,TRB electronics (12 BCUs; 96 BMMs; 24 string contactor coils; 2 ETH switches),24V_Ctrl,0,0.177,0.177,0.177,0.177,0.177,0,0,0.359,POC Power Budget Rev B (no ESMU on prototype)
+L04,C24-15/16/19/20,HVR controllers (panto ctrl; 3 VIOs; reverser ctrl; RTV),24V_Ctrl,0,0.04,0.04,0.04,0.04,0.04,0,0,0.051,POC Power Budget Rev B
+L05,C24-18,HSCB A/B holding (HSCB may be deleted),24V_Ctrl,0,0,0.06,0.06,0.06,0,0,0,0.1,POC Power Budget Rev B; held only when closed
+L06,C24-17,Charging main contactor coils (panto-CP x1; charger-CP x2),24V_Ctrl,0,0,0,0,0.03,0,0,0,0.15,POC Power Budget Rev B; held only while charging
+L07,C24-21..25,Converter and inverter control supplies,24V_Ctrl,0,0.1,0.1,0.1,0.1,0.1,0,0,0.124,POC Power Budget Rev B
+L08,C24-26,MCS controller logic x2 (MCS out of demo scope),24V_Ctrl,0,0.01,0.01,0.01,0.01,0.01,0,0,0.01,POC Power Budget Rev B
+L09,C24-29,E-Stop translators and misc relays,24V_Ctrl,0,0.005,0.005,0.005,0.005,0.005,0,0,0.01,POC Power Budget Rev B
+L10,V72-02,Locomotive control (cab computer; MCO position),72V,0,0.03,0.03,0.03,0.03,0.03,0,0,0.08,POC Power Budget Rev B
+L11,V72-03,Cab lights and displays,72V,0,0.08,0.08,0.08,0.08,0.08,0,0,0.2,POC Power Budget Rev B
+L12,V72-04,Cab HVAC (nominal = 50% cycling),72V,0,0,0.75,0.75,0.75,0,0,0,1.5,POC Power Budget Rev B; crew present in READY/TRACTION/CHARGING (state mapping = assumption)
+L13,V72-05,Exterior lighting (headlights; ditch; class),72V,0,0,0.4,0.4,0.4,0,0,0,0.8,POC Power Budget Rev B (assumption in source)
+L14,V72-06,Wake circuit (always on),72V,0.005,0.005,0.005,0.005,0.005,0.005,0.005,0,0.005,POC Power Budget Rev B
+L15,V72-07,E-Stop 72 V loop,72V,0,0.002,0.002,0.002,0.002,0.002,0,0,0.002,POC Power Budget Rev B
+L16,V72-08,Polarity reverser coil (latching: 0 W held),72V,0,0,0,0,0,0,0,0,0.36,POC Power Budget Rev B
+L17,B24-03,Pantograph 24 V kits x4 (folded sense; raised hold when charging),24V_BTMS,0,0.015,0.015,0.015,0.1,0.015,0,0,1.0,POC Power Budget Rev B (folded 15 W from arch doc)
+L18,B12-03/06/07,MTM ECUs x4; Thermiantor3; heater LV logic,12V_BTMS,0,0.047,0.047,0.047,0.047,0.047,0,0,0.25,POC Power Budget Rev B
+L19,H75-04,Brake compressor via ACH inverter (nominal = 30% cycling),750V,0,0,1.53,1.53,1.53,0,0,0,5.1,POC Power Budget Rev B
+L20,H75-05,Traction blowers via ACH inverter (nominal = 50%; on when moving),750V,0,0,0,0,0,0,0,12.75,25.5,POC Power Budget Rev B (arch doc 25 kW; GP40-V spec says 2 x 30 HP: RSK-NEW-34)
+L21,B12-01/02,SPAL 12 V radiator fans x6 (LV radiators; PE x3 + condenser x3; nominal 60% speed),12V_BTMS,0,0.9,0.9,0.9,0.9,0.9,0,0,2.52,POC Power Budget Rev B; LV radiators not in the plant thermal model (RSK-NEW-35)

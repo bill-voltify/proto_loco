@@ -14,6 +14,8 @@ function RUN = run_loco_system(trace, varargin)
 %   MaxStep         solver max step, s (1)
 %   Plot            true/false (true)
 %   Build           force rebuild of the model (false)
+%   Baseline        'poc' (Micah's POC Power Budget, default) | 'phase2' (regression)
+%   UseBudget       true = ignore the trace's aux_override_kW and use load_budget.csv (false)
 here = fileparts(mfilename('fullpath'));
 addpath(here); addpath(fileparts(here));
 p = inputParser;
@@ -29,6 +31,8 @@ p.addParameter('MaxStep', 1);
 p.addParameter('Plot', true);
 p.addParameter('Build', false);
 p.addParameter('Silent', false);
+p.addParameter('Baseline', 'poc');
+p.addParameter('UseBudget', false);
 p.parse(varargin{:});
 o = p.Results;
 
@@ -46,7 +50,8 @@ else
     F = load_fault_table(ff);
 end
 P = loco_system_params(struct('T_amb_C', TR.ambient0_C, 'T0_C', o.T0_C, 'soc0', o.soc0, ...
-    'I_chg_bms', o.I_chg_bms, 'bms', o.bms));
+    'I_chg_bms', o.I_chg_bms, 'bms', o.bms, 'baseline', o.Baseline));
+if o.UseBudget, TR.SCN(:, 7) = -1; end
 FLT = build_fault_matrix(F, TR.t_end, P);
 B = load_budget_table(o.Budget);
 
@@ -63,6 +68,7 @@ in = in.setVariable('FLT', FLT);
 in = in.setVariable('LB', B.LB);
 in = in.setVariable('LBmov', B.LBmov);
 in = in.setVariable('LBbus', B.LBbus);
+in = in.setVariable('LBeff', B.LBeff);
 in = in.setModelParameter('StopTime', num2str(TR.t_end), 'MaxStep', num2str(o.MaxStep));
 tic;
 out = sim(in);

@@ -30,12 +30,14 @@ jobs = struct('fault', {}, 'channel', {}, 'fmea', {}, 'Ta', {}, 'F', {});
 for a = o.Ambients
     F0 = L([], :);
     jobs(end+1) = struct('fault', "BASELINE", 'channel', "", 'fmea', "", 'Ta', a, 'F', F0); %#ok<AGROW>
-    for k = 1:height(L)
-        Fk = L(k, :);
-        Fk.enabled = 1;
-        Fk.t_start_s = o.Onset_s;
-        Fk.t_end_s = 1e9;
-        jobs(end+1) = struct('fault', L.fault_id(k), 'channel', L.channel(k), 'fmea', string(L.fmea(k)), 'Ta', a, 'F', Fk); %#ok<AGROW>
+    ids = unique(L.fault_id, 'stable');
+    for k = 1:numel(ids)
+        Fk = L(L.fault_id == ids(k), :);   % rows sharing a fault_id are applied together (LRU faults)
+        Fk.enabled(:) = 1;
+        Fk.t_start_s(:) = o.Onset_s;
+        Fk.t_end_s(:) = 1e9;
+        jobs(end+1) = struct('fault', ids(k), 'channel', string(strjoin(unique(Fk.channel, 'stable'), '+')), ...
+            'fmea', string(Fk.fmea(1)), 'Ta', a, 'F', Fk); %#ok<AGROW>
     end
 end
 n = numel(jobs);
@@ -52,7 +54,7 @@ else
 end
 T = struct2table([res{:}]');
 
-T.by_design_stop = ismember(T.channel, by_design);
+T.by_design_stop = contains(T.channel, by_design);
 lvl = containers.Map({'OPTIMAL','OK','DERATED','FAIL','ERROR'}, {4, 3, 2, 1, 0});
 T.severity = cellfun(@(v) lvl(char(v)), cellstr(T.verdict));
 % deltas vs baseline at the same ambient
@@ -87,7 +89,7 @@ for i = 1:height(T)
     elseif T.dTchop_max(i) > 10 || T.dTinv_max(i) > 10 || T.dTcell_max(i) > 2 || T.dTmotor_max(i) > 30
         rel = "WATCH";
     elseif T.severity(i) > b.severity(1)
-        if ismember(T.channel(i), masking), rel = "MASKED"; else, rel = "TRADE-OFF"; end
+        if any(contains(T.channel(i), masking)), rel = "MASKED"; else, rel = "TRADE-OFF"; end
     else
         rel = "SAME";
     end

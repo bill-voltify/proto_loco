@@ -34,17 +34,27 @@ if ismember('state', v)
         for k = 1:numel(names), st(s == names{k}) = k - 1; end
     end
 end
-auto = isnan(st);
-st(auto & t < 2) = 0;
-st(auto & t >= 2) = 2;
-st(auto & t >= 2 & mph > 0) = 3;
-st(auto & t >= 2 & wire > 0) = 4;
-
 [t, i] = sort(t);
-TR.SCN = [t, mph(i), grade(i), amb(i), tons(i), wire(i), ovr(i)];
-TR.SCN_D = [t, st(i)];
+mph = mph(i); grade = grade(i); amb = amb(i); tons = tons(i); wire = wire(i); ovr = ovr(i); st = st(i);
+TR.SCN = [t, mph, grade, amb, tons, wire, ovr];
+if any(isnan(st))
+    % Automatic states depend on speed and wire power BETWEEN breakpoints, so evaluate them on a
+    % 1 s grid (explicit states hold until the next row).
+    tg = unique([(0:1:t(end))'; t]);
+    sg = interp1(t, st, tg, 'previous');
+    mg = interp1(t, mph, tg);
+    wg = interp1(t, wire, tg);
+    a = isnan(sg);
+    sg(a & tg < 2) = 0;
+    sg(a & tg >= 2) = 2;
+    sg(a & tg >= 2 & mg > 0) = 3;
+    sg(a & tg >= 2 & wg > 0) = 4;
+    TR.SCN_D = [tg, sg];
+else
+    TR.SCN_D = [t, st];
+end
 TR.t_end = t(end);
-TR.ambient0_C = amb(i(1));
+TR.ambient0_C = amb(1);
 if ischar(src) || isstring(src), TR.name = string(src); else, TR.name = "table"; end
 end
 

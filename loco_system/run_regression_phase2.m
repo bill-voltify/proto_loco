@@ -25,7 +25,7 @@ for ic = 1:numel(ic_list)
             fprintf('%-20s %3d C %-7s ... ', S(s).name, Ta, ic_list{ic});
             try
                 RUN = run_loco_system(fullfile(here, 'traces', [S(s).name '.csv']), 'Ambient_C', Ta, 'T0_C', T0, ...
-                    'soc0', S(s).soc0, 'I_chg_bms', S(s).I_chg_bms, 'MaxStep', S(s).max_step, 'Plot', false, 'Silent', true);
+                    'soc0', S(s).soc0, 'I_chg_bms', S(s).I_chg_bms, 'MaxStep', S(s).max_step, 'Plot', false, 'Silent', true, 'Baseline', 'phase2');
                 M = RUN.metrics;
                 r = ref(ref.scenario == S(s).name & ref.T_amb == Ta & ref.ic == ic_list{ic}, :);
                 row = struct('scenario', string(S(s).name), 'ic', string(ic_list{ic}), 'T_amb', Ta, ...

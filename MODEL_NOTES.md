@@ -242,3 +242,15 @@ Team-facing model in the style of the MathWorks EV examples. See `loco_system/RE
 - Power Budget replaces the fixed 30 kW + 42 kW aux assumption with per-load values by state (standby ~0.6 kW; traction ~5 kW + 44.7 kW blowers when moving). Regression traces keep the Phase 2 aux values via `aux_override_kW`.
 - New package `+locosys` (copy of `+protoloco` with inputs for ambient, train mass, TMS enable, traction permit and 10 fault channels). `+protoloco` is unchanged.
 - Acceptance: `run_regression_phase2` reproduces the Phase 2 sweep (same verdict; ΔTcell < 0.5 K; ΔT PE supply < 1 K; ΔSOC < 0.01).
+
+
+## Phase 3 baseline update — POC Power Budget Rev B (2026-10-08)
+- `load_budget.csv` rebuilt from Micah's POC Power Budget (IDs, buses, nominal/peak values, converter efficiencies).
+- Thermal parameters (Phase 3 `baseline = 'poc'`): heater 24 → 12 kW; MTM cooling 12.5 → 12 kW; COP slope 0.05 → 0.10/K, floor 1.2 → 1.5; pumps 1.5 → 2.77 kW (750 V side). Fans unchanged (EMP, by decision).
+- Phase 2 (`proto_loco_params` alone, `run_thermal_sweep`) is unchanged and remains the regression reference.
+- Expected effect (Python replica): hot-ambient verdicts unchanged (condenser loop and PE supply within 0.7 K); TMS energy +10–16 %; cold soak at 0 °C now ~4.0 h to reach 5 °C (was ~1.9 h); the pack reaches only ~7 °C after 6 h of heating.
+
+## Phase 3 fixes (2026-10-08, after first POC-baseline runs)
+- **Automatic states:** `load_trace` evaluated blank states only at breakpoints, so a trace with breakpoints at 0 s and 6 h (S8) stayed in SLEEP (HV and TMS off) for the whole run. Blank states are now evaluated on a 1 s grid.
+- **SPAL 12 V radiator fans** (6 × 150 W nominal, POC B12-01/02) added to `load_budget.csv` (STANDBY to FAULT). The LV radiators' heat rejection is not modeled (RSK-NEW-35).
+- **LRU faults:** fault-library rows that share a `fault_id` are applied together (`run_fault_sweep` groups them). New: BTMS_24V_PS_TRIP (all pumps), BTMS_12V_PS_TRIP (chillers off).

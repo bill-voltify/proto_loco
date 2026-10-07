@@ -16,3 +16,6 @@ AUX_DCDC_TRIP,TBD,1500-750 V aux converter trip (aux loads and TMS lost),aux_ok,
 CHARGER_DERATE_50,TBD,Onboard charger derated to 50%,chg_derate,0.5,0,1e9,0
 ESTOP,TBD,E-Stop pressed,estop,1,0,1e9,0
 CLASS_A_GENERIC,F46,Any other Class A fault (traction and charging blocked),classA,1,0,1e9,0
+BTMS_24V_PS_TRIP,F61,BTMS 24 V supply (DCC65M24) trip: all SPAL pumps stop (PE loop),pump_pe,0.05,0,1e9,0
+BTMS_24V_PS_TRIP,F61,BTMS 24 V supply (DCC65M24) trip: all SPAL pumps stop (battery loop),pump_bat,0,0,1e9,0
+BTMS_12V_PS_TRIP,F55,BTMS 12 V supply (NetPower) trip: MTM ECUs and internal pumps off (chillers lost; LV fans not modeled),n_mtm,0,0,1e9,0
