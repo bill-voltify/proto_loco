@@ -1,0 +1,69 @@
+component axle
+    nodes
+        p = foundation.electrical.electrical;
+        n = foundation.electrical.electrical;
+        W = foundation.mechanical.rotational.rotational;
+    end
+    inputs
+        TE_ref = {0, 'N'};
+    end
+    outputs
+        ia = {0, 'A'};
+        va = {0, 'V'};
+        idc = {0, 'A'};
+    end
+    parameters
+        G = {4.1333, '1'};
+        r_w = {0.508, 'm'};
+        eta_g = {0.97, '1'};
+        R_m = {0.035, 'Ohm'};
+        L_a = {10e-3, 'H'};
+        Kphi_sat = {9.0, 'V*s/rad'};
+        I0 = {600, 'A'};
+        If_min = {50, 'A'};
+        I_max = {1500, 'A'};
+        V_mot_max = {750, 'V'};
+        D_max = {0.95, '1'};
+        P_ax_max = {655e3, 'W'};
+        w_floor = {5, 'rad/s'};
+        Kp_i = {2, 'Ohm'};
+        a_loss = {2.5, 'V'};
+        b_loss = {2.38e-3, 'Ohm'};
+        V_floor = {100, 'V'};
+        P_eps = {1e3, 'W'};
+        I_tab = {[0 100 200 400 600 800 1000 1200 1400 1600 1800], 'A'};
+        T_tab = {[0 138 510 1752 3413 5302 7300 9339 11378 13399 15393], 'N*m'};
+    end
+    variables
+        i_a = {0, 'A'};
+        i_dc = {0, 'A'};
+        t = {0, 'N*m'};
+    end
+    branches
+        i_dc : p.i -> n.i;
+        t : W.t -> *;
+    end
+    equations
+        let
+            wm = G*W.w;
+            kphi = Kphi_sat*(1 - exp(-max(abs(i_a), If_min)/I0));
+            E = kphi*wm;
+            Vdc = p.v - n.v;
+            Vmax = min(D_max*max(Vdc, {0, 'V'}), V_mot_max);
+            Tm_lim = P_ax_max/max(abs(wm), w_floor);
+            Tm_ref = min(max(TE_ref*r_w/G, -Tm_lim), Tm_lim);
+            Iref = min(max(sign(Tm_ref)*tablelookup(T_tab, I_tab, abs(Tm_ref), interpolation = linear, extrapolation = nearest), -I_max), I_max);
+            Va = min(max(E + R_m*i_a + Kp_i*(Iref - i_a), {0, 'V'}), Vmax);
+            Tm = kphi*i_a;
+            Tax = G*Tm*(eta_g + (1/eta_g - eta_g)*0.5*(1 - tanh(Tm*wm/P_eps)));
+            Ploss = a_loss*abs(i_a) + b_loss*i_a^2;
+        in
+            L_a*der(i_a) == Va - E - R_m*i_a;
+            t == -Tax;
+            i_dc*max(Vdc, V_floor) == Va*i_a + Ploss;
+            ia == i_a;
+            va == Va;
+            idc == i_dc;
+        end
+    end
+end

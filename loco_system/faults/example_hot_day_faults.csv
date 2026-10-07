@@ -1,0 +1,4 @@
+fault_id,fmea,description,channel,active_value,t_start_s,t_end_s,enabled
+MTM_LOSS_1,F55,One Maxwell chiller module lost (3 of 4),n_mtm,3,10800,28800,1
+PE_FAN_FAIL,F54,PE radiator fans failed for 1 h,fan_pe,0,14400,18000,1
+AXLE4_CUTOUT,F50,Axle 4 cut out after a fault,n_ax_on,3,21600,28800,1

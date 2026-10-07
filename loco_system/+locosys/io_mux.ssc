@@ -1,0 +1,38 @@
+component io_mux
+    inputs
+        v = {0, 'm/s'};
+        soc = {0, '1'};
+        vt = {0, 'V'};
+        ib = {0, 'A'};
+        vlink = {0, 'V'};
+        ia = {0, 'A'};
+        va = {0, 'V'};
+        te = {0, 'N'};
+        ff = {0, 'N'};
+        pa = {0, 'W'};
+        pc = {0, 'W'};
+        idc = {0, 'A'};
+        Tc = {298.15, 'K'};
+        Tb = {298.15, 'K'};
+        Tcs = {298.15, 'K'};
+        Tcd = {298.15, 'K'};
+        Tsup = {298.15, 'K'};
+        Tchg = {298.15, 'K'};
+        Tchop = {298.15, 'K'};
+        Tinv = {298.15, 'K'};
+        Tm = {298.15, 'K'};
+        ptms = {0, 'W'};
+        qc = {0, 'W'};
+        qh = {0, 'W'};
+        qb = {0, 'W'};
+        qpe = {0, 'W'};
+        kd = {0, '1'};
+        kc = {0, '1'};
+    end
+    outputs
+        y = {zeros(28, 1), '1'};
+    end
+    equations
+        y == [v/{0.44704, 'm/s'}; soc; vt/{1, 'V'}; ib/{1, 'A'}; vlink/{1, 'V'}; ia/{1, 'A'}; va/{1, 'V'}; te/{1, 'N'}; ff/{1, 'N'}; pa/{1, 'W'}; pc/{1, 'W'}; idc/{1, 'A'}; Tc/{1, 'K'}; Tb/{1, 'K'}; Tcs/{1, 'K'}; Tcd/{1, 'K'}; Tsup/{1, 'K'}; Tchg/{1, 'K'}; Tchop/{1, 'K'}; Tinv/{1, 'K'}; Tm/{1, 'K'}; ptms/{1, 'W'}; qc/{1, 'W'}; qh/{1, 'W'}; qb/{1, 'W'}; qpe/{1, 'W'}; kd; kc];
+    end
+end

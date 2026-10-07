@@ -1,0 +1,32 @@
+component auxload
+    nodes
+        p = foundation.electrical.electrical;
+        n = foundation.electrical.electrical;
+    end
+    inputs
+        P = {0, 'W'};
+        P2 = {0, 'W'};
+    end
+    outputs
+        p_in = {0, 'W'};
+    end
+    parameters
+        eta = {0.96, '1'};
+        P_max = {250e3, 'W'};
+        V_floor = {100, 'V'};
+    end
+    variables
+        i = {0, 'A'};
+    end
+    branches
+        i : p.i -> n.i;
+    end
+    equations
+        let
+            Pin = min(max(P + P2, {0, 'W'}), P_max)/eta;
+        in
+            i*max(p.v - n.v, V_floor) == Pin;
+            p_in == Pin;
+        end
+    end
+end

@@ -1,0 +1,73 @@
+component lcc_proxy
+% Locomotive control proxy: speed PI (gains scheduled on train mass), traction/regen limits,
+% axle cut-out (n_ax_on), string loss (n_str), traction permit from the state manager,
+% park / anti-rollback brake.
+    inputs
+        v_ref = {0, 'm/s'};
+        v = {0, 'm/s'};
+        Vbat = {0, 'V'};
+        k_dis = {1, '1'};
+        k_chg = {1, '1'};
+        m_trail = {0, 'kg'};
+        trac = {1, '1'};
+        n_ax_on = {4, '1'};
+        n_str = {12, '1'};
+    end
+    outputs
+        TE_ax = {0, 'N'};
+        TE_ax4 = {0, 'N'};
+        F_fric = {0, 'N'};
+    end
+    parameters
+        m_loco = {122470, 'kg'};
+        k_rot_loco = {1.08, '1'};
+        k_rot_trail = {1.03, '1'};
+        wn = {0.2, '1/s'};
+        zeta = {0.8, '1'};
+        N_ax = {4, '1'};
+        N_str_nom = {12, '1'};
+        mu_adh = {0.25, '1'};
+        P_trac_max = {2.144e6, 'W'};
+        I_dis_max = {1884, 'A'};
+        I_chg_max = {1884, 'A'};
+        eta_drv = {0.88, '1'};
+        v_floor = {0.5, 'm/s'};
+        v_blend = {1.5, 'm/s'};
+        mu_park = {0.1, '1'};
+        v_rb = {0.1, 'm/s'};
+        T_aw = {2, 's'};
+        g = {9.81, 'm/s^2'};
+    end
+    variables
+        xi = {0, 'N'};
+    end
+    equations
+        let
+            mt = max(m_trail, {0, 'kg'});
+            m_tot = m_loco + mt;
+            m_eff = k_rot_loco*m_loco + k_rot_trail*mt;
+            Kp_v = 2*zeta*wn*m_eff;
+            Ki_v = wn^2*m_eff;
+            nax = min(max(n_ax_on, 0), N_ax);
+            fstr = min(max(n_str, 0), N_str_nom)/N_str_nom;
+            TE_adh = mu_adh*m_loco*g*nax/N_ax;
+            e = v_ref - v;
+            TE_raw = Kp_v*e + xi;
+            vabs = max(abs(v), v_floor);
+            P_dis = trac*min(P_trac_max*nax/N_ax, I_dis_max*fstr*k_dis*Vbat*eta_drv);
+            P_reg = min(P_trac_max*nax/N_ax, I_chg_max*fstr*k_chg*Vbat/eta_drv);
+            TE_mot_lim = min(TE_adh, P_dis/vabs);
+            TE_reg_lim = min(TE_adh, P_reg/vabs)*min(abs(v)/v_blend, 1);
+            TE_cmd = min(max(TE_raw, -TE_adh), TE_mot_lim);
+            TE_el = max(TE_cmd, -TE_reg_lim);
+            F_park = mu_park*m_tot*g;
+            F_hold = if v_ref < {0.01, 'm/s'}, F_park else F_park*min(max(-v/v_rb, 0), 1) end;
+            TE_each = TE_el/max(nax, 1);
+        in
+            der(xi) == if v_ref < {0.01, 'm/s'}, -xi/{1, 's'} else Ki_v*e + (TE_cmd - TE_raw)/T_aw end;
+            TE_ax == TE_each;
+            TE_ax4 == TE_each*min(max(nax - 3, 0), 1);
+            F_fric == TE_el - TE_cmd + F_hold;
+        end
+    end
+end

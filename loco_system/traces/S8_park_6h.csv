@@ -1,0 +1,3 @@
+time_s,speed_mph,grade_pct,ambient_C,trailing_tons,state,wire_kW,aux_override_kW
+0,0,0,25,0,,0,10
+21600,0,0,25,0,,0,10

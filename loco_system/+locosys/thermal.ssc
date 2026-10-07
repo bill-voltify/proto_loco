@@ -1,0 +1,163 @@
+component thermal
+% Lumped thermal network: battery + coolant, Maxwell chiller (MTM) with condenser
+% radiator, PE loop radiator, D77 motor; BMS cooling/heating modes and derate.
+% All temperatures in K. Phase 3: ambient, TMS enable and fault inputs.
+% T_amb parameter = initial loop temperature; Ta input = ambient during the run. Parameter provenance: MODEL_NOTES.md (Phase 2).
+    inputs
+        Qb = {0, 'W'};
+        ia = {0, 'A'};
+        p_chg = {0, 'W'};
+        p_aux = {0, 'W'};
+        en = {0, '1'};
+        Ta = {298.15, 'K'};
+        tms_en = {1, '1'};
+        n_mtm = {4, '1'};
+        fan_pe = {1, '1'};
+        fan_cd = {1, '1'};
+        pump_pe = {1, '1'};
+        pump_bat = {1, '1'};
+        n_ax_on = {4, '1'};
+        blower = {1, '1'};
+        dT_s = {0, 'K'};
+    end
+    outputs
+        Tc_o = {298.15, 'K'};
+        Tb_o = {298.15, 'K'};
+        Tcs_o = {298.15, 'K'};
+        Tcd_o = {298.15, 'K'};
+        Tsup_o = {298.15, 'K'};
+        Tchg_o = {298.15, 'K'};
+        Tchop_o = {298.15, 'K'};
+        Tinv_o = {298.15, 'K'};
+        Tm_o = {298.15, 'K'};
+        Ptms = {0, 'W'};
+        Qc_o = {0, 'W'};
+        Qh_o = {0, 'W'};
+        Qpe_o = {0, 'W'};
+        k_dis = {1, '1'};
+        k_chg = {1, '1'};
+    end
+    parameters
+        T_amb = {298.15, 'K'};
+        T0_bat = {298.15, 'K'};
+        C_bat = {3.01e+07, 'J/K'};
+        UA_bc = {5000, 'W/K'};
+        UA_benv = {300, 'W/K'};
+        C_bc = {1.28e+06, 'J/K'};
+        N_mtm = {4, '1'};
+        Q_mtm = {12500, 'W'};
+        T_cs_ref = {323.15, 'K'};
+        k_cap = {0.02, '1/K'};
+        T_cs_cut = {338.15, 'K'};
+        dT_cut = {5, 'K'};
+        COP_ref = {3, '1'};
+        k_cop = {0.05, '1/K'};
+        COP_min = {1.2, '1'};
+        Kp_chill = {20000, 'W/K'};
+        T_cool_set = {295.15, 'K'};
+        T_cool_on = {301.15, 'K'};
+        T_cool_off = {299.65, 'K'};
+        Q_heat_max = {24000, 'W'};
+        T_heat_on = {285.15, 'K'};
+        T_heat_off = {286.65, 'K'};
+        C_cd = {220000, 'J/K'};
+        UA_cd = {2810, 'W/K'};
+        mcp_cd = {5880, 'W/K'};
+        C_pe = {500000, 'J/K'};
+        UA_pe = {2834, 'W/K'};
+        mcp_pe = {13300, 'W/K'};
+        mcp_chg = {3600, 'W/K'};
+        mcp_chop = {1430, 'W/K'};
+        mcp_inv = {950, 'W/K'};
+        N_ax = {4, '1'};
+        a_loss = {2.5, 'V'};
+        b_loss = {0.00238, 'Ohm'};
+        eta_chg = {0.9934, '1'};
+        k_aux_pe = {0.08, '1'};
+        k_inv = {0.02, '1'};
+        Q_pe_idle = {1500, 'W'};
+        R_m = {0.035, 'Ohm'};
+        C_mot = {1.5e+06, 'J/K'};
+        UA_mot = {276, 'W/K'};
+        P_fan_cd = {7000, 'W'};
+        P_fan_pe = {7000, 'W'};
+        P_pump = {1500, 'W'};
+        T_fan_on = {308.15, 'K'};
+        dT_fan = {10, 'K'};
+        tau_m = {5, 's'};
+        f_ram = {0.2, '1'};
+        T_hot_L1 = {318.15, 'K'};
+        T_hot_L2 = {323.15, 'K'};
+        T_cchg_L1 = {278.15, 'K'};
+        T_cchg_L2 = {276.15, 'K'};
+        T_cdis_L1 = {278.15, 'K'};
+        T_cdis_L2 = {276.15, 'K'};
+    end
+    variables
+        Tc = {298.15, 'K'};
+        Tb = {298.15, 'K'};
+        Tcd = {298.15, 'K'};
+        Tpe = {298.15, 'K'};
+        Tm = {298.15, 'K'};
+        mc = {0, '1'};
+        mh = {0, '1'};
+    end
+    equations (Initial = true)
+        Tc == T0_bat;
+        Tb == T0_bat;
+        Tcd == T_amb;
+        Tpe == T_amb;
+        Tm == T_amb;
+        mc == 0;
+        mh == 0;
+    end
+    equations
+        let
+            Qrad_cd = UA_cd*(f_ram + (1 - f_ram)*fan_cd)*(Tcd - Ta);
+            Tcs = Tcd - Qrad_cd/mcp_cd;
+            f_cap = min(max(1 - k_cap*(Tcs - T_cs_ref), 0), 1.2)*min(max((T_cs_cut - Tcs)/dT_cut, 0), 1);
+            Qc_av = min(max(n_mtm, 0), N_mtm)*Q_mtm*f_cap;
+            Tsens = Tc + dT_s;
+            Qc = tms_en*mc*min(max(Kp_chill*(Tsens - T_cool_set), {0, 'W'}), Qc_av);
+            COP = max(COP_min, COP_ref - k_cop*(Tcs - T_cs_ref));
+            Pcomp = Qc/COP;
+            Qh = tms_en*mh*Q_heat_max;
+            fq = max(pump_pe, 0.05);
+            UAbc = UA_bc*(0.2 + 0.8*pump_bat);
+            Qchop = n_ax_on*(a_loss*abs(ia) + b_loss*ia^2);
+            Qchg = max(p_chg, {0, 'W'})*(1/eta_chg - 1);
+            f_pe = min(max((Tpe - T_fan_on)/dT_fan, 0.1), 1);
+            Qpe = Qchop + Qchg + k_aux_pe*p_aux + Q_pe_idle*en;
+            Qrad_pe = UA_pe*(f_ram + (1 - f_ram)*fan_pe)*min(1, 0.2 + 0.8*pump_pe)*(Tpe - Ta);
+            Tsup = Tpe - Qrad_pe/(mcp_pe*fq);
+            mc_tgt = if Tsens >= T_cool_on || (mc > 0.5 && Tsens > T_cool_off), 1 else 0 end;
+            mh_tgt = if Tsens <= T_heat_on || (mh > 0.5 && Tsens < T_heat_off), 1 else 0 end;
+            k_hot = min(max((T_hot_L2 - Tsens)/(T_hot_L2 - T_hot_L1), 0), 1);
+            k_cc = min(max((Tsens - T_cchg_L2)/(T_cchg_L1 - T_cchg_L2), 0), 1);
+            k_cd = min(max((Tsens - T_cdis_L2)/(T_cdis_L1 - T_cdis_L2), 0), 1);
+        in
+            C_bat*der(Tc) == Qb - UAbc*(Tc - Tb) - UA_benv*(Tc - Ta);
+            C_bc*der(Tb) == UAbc*(Tc - Tb) - Qc + Qh;
+            C_cd*der(Tcd) == Qc + Pcomp - Qrad_cd;
+            C_pe*der(Tpe) == Qpe - Qrad_pe;
+            C_mot*der(Tm) == R_m*ia^2 - UA_mot*(0.15 + 0.85*blower)*(Tm - Ta);
+            tau_m*der(mc) == mc_tgt - mc;
+            tau_m*der(mh) == mh_tgt - mh;
+            Tc_o == Tc;
+            Tb_o == Tb;
+            Tcs_o == Tcs;
+            Tcd_o == Tcd;
+            Tsup_o == Tsup;
+            Tchg_o == Tsup + Qchg/(mcp_chg*fq);
+            Tchop_o == Tsup + (a_loss*abs(ia) + b_loss*ia^2)/(mcp_chop*fq);
+            Tinv_o == Tsup + k_inv*p_aux/(mcp_inv*fq);
+            Tm_o == Tm;
+            Ptms == Pcomp + Qh + P_pump*tms_en + P_fan_cd*mc*tms_en*fan_cd + P_fan_pe*f_pe*en*fan_pe;
+            Qc_o == Qc;
+            Qh_o == Qh;
+            Qpe_o == Qpe;
+            k_dis == k_hot*k_cd;
+            k_chg == k_hot*k_cc;
+        end
+    end
+end

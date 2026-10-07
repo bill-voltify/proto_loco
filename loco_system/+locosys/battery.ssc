@@ -1,0 +1,59 @@
+component battery
+    nodes
+        p = foundation.electrical.electrical;
+        n = foundation.electrical.electrical;
+    end
+    inputs
+        T = {298.15, 'K'};
+        n_str = {12, '1'};
+    end
+    outputs
+        soc = {0, '1'};
+        vt = {0, 'V'};
+        ib = {0, 'A'};
+        Qh = {0, 'W'};
+    end
+    parameters
+        Ns = {416, '1'};
+        Np = {12, '1'};
+        Q_cell = {314, 'A*hr'};
+        R0_cell = {0.13e-3, 'Ohm'};
+        R1_cell = {0.062e-3, 'Ohm'};
+        tau1 = {30, 's'};
+        R_bus = {1.0e-3, 'Ohm'};
+        soc0 = {0.9, '1'};
+        SOC_tab = {[0 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.95 1], '1'};
+        OCV_tab = {[2.90 3.10 3.18 3.22 3.25 3.27 3.29 3.30 3.31 3.33 3.35 3.40 3.55], 'V'};
+        B_R = {2257, 'K'};
+        T_ref = {298.15, 'K'};
+        T_min = {233.15, 'K'};
+    end
+    variables
+        i = {0, 'A'};
+        z = {0.9, '1'};
+        v1 = {0, 'V'};
+    end
+    branches
+        i : n.i -> p.i;
+    end
+    equations (Initial = true)
+        z == soc0;
+        v1 == {0, 'V'};
+    end
+    equations
+        let
+            fT = exp(B_R*(1/max(T, T_min) - 1/T_ref));
+            ns = max(n_str, 1);
+            R0t = Ns*R0_cell*fT/ns + R_bus;
+            R1t = Ns*R1_cell*fT/ns;
+        in
+            p.v - n.v == Ns*tablelookup(SOC_tab, OCV_tab, z, interpolation = linear, extrapolation = nearest) - i*R0t - v1;
+            tau1*der(v1) == i*R1t - v1;
+            der(z) == -i/(ns*Q_cell);
+            soc == z;
+            vt == p.v - n.v;
+            ib == i;
+            Qh == i^2*R0t + v1^2/R1t;
+        end
+    end
+end

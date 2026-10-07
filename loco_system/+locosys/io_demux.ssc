@@ -1,0 +1,47 @@
+component io_demux
+% Input vector u (18): [v_ref mph, grade %, P_aux W, P_chg W, hv_en, T_amb K, m_trail kg, tms_en,
+%  n_mtm, fan_pe, fan_cd, pump_pe, pump_bat, n_ax_on, n_str, dT_sense K, blower, trac_permit]
+    inputs
+        u = {zeros(18, 1), '1'};
+    end
+    outputs
+        v_ref = {0, 'm/s'};
+        grade = {0, '1'};
+        P_aux = {0, 'W'};
+        P_chg = {0, 'W'};
+        en = {0, '1'};
+        Ta = {298.15, 'K'};
+        m_trail = {0, 'kg'};
+        tms_en = {0, '1'};
+        n_mtm = {0, '1'};
+        fan_pe = {0, '1'};
+        fan_cd = {0, '1'};
+        pump_pe = {0, '1'};
+        pump_bat = {0, '1'};
+        n_ax_on = {0, '1'};
+        n_str = {0, '1'};
+        dT_s = {0, 'K'};
+        blower = {0, '1'};
+        trac = {0, '1'};
+    end
+    equations
+        v_ref == u(1)*{0.44704, 'm/s'};
+        grade == u(2);
+        P_aux == u(3)*{1, 'W'};
+        P_chg == u(4)*{1, 'W'};
+        en == u(5);
+        Ta == u(6)*{1, 'K'};
+        m_trail == u(7)*{1, 'kg'};
+        tms_en == u(8);
+        n_mtm == u(9);
+        fan_pe == u(10);
+        fan_cd == u(11);
+        pump_pe == u(12);
+        pump_bat == u(13);
+        n_ax_on == u(14);
+        n_str == u(15);
+        dT_s == u(16)*{1, 'K'};
+        blower == u(17);
+        trac == u(18);
+    end
+end

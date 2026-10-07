@@ -231,3 +231,14 @@ Key numbers: cell peak 28 °C in every preconditioned case; battery heat 25 kW a
 - No solar load, no wind/vehicle-speed air flow benefit, no enclosure air node.
 - D77 thermal is a single-node placeholder calibrated to a 140 K rise at 1050 A.
 - Reverse moves modeled as repeat moves (speed magnitude only).
+
+
+---
+
+# Phase 3 — System model (`loco_system/`, 2026-10-08)
+Team-facing model in the style of the MathWorks EV examples. See `loco_system/README_SYSTEM.md`.
+- Inputs from files: duty traces (speed, grade, ambient, trailing tons, wire power, state), fault tables, load budget.
+- Stateflow State Manager (SLEEP, STANDBY, READY, TRACTION, CHARGING, FAULT, ESTOP) gates HV, TMS, traction and charging.
+- Power Budget replaces the fixed 30 kW + 42 kW aux assumption with per-load values by state (standby ~0.6 kW; traction ~5 kW + 44.7 kW blowers when moving). Regression traces keep the Phase 2 aux values via `aux_override_kW`.
+- New package `+locosys` (copy of `+protoloco` with inputs for ambient, train mass, TMS enable, traction permit and 10 fault channels). `+protoloco` is unchanged.
+- Acceptance: `run_regression_phase2` reproduces the Phase 2 sweep (same verdict; ΔTcell < 0.5 K; ΔT PE supply < 1 K; ΔSOC < 0.01).

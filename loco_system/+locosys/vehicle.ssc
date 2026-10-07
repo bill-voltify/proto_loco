@@ -1,0 +1,44 @@
+component vehicle
+    nodes
+        W = foundation.mechanical.rotational.rotational;
+    end
+    inputs
+        grade = {0, '1'};
+        F_brake = {0, 'N'};
+        m_trail = {0, 'kg'};
+    end
+    outputs
+        v = {0, 'm/s'};
+    end
+    parameters
+        r_w = {0.508, 'm'};
+        m_loco = {122470, 'kg'};
+        k_rot_loco = {1.08, '1'};
+        k_rot_trail = {1.03, '1'};
+        Crr = {0.002, '1'};
+        CdA = {8, 'm^2'};
+        rho = {1.225, 'kg/m^3'};
+        g = {9.81, 'm/s^2'};
+        v_eps = {0.1, 'm/s'};
+    end
+    variables
+        t = {0, 'N*m'};
+        w = {0, 'rad/s'};
+    end
+    branches
+        t : W.t -> *;
+    end
+    equations
+        w == W.w;
+        let
+            vv = w*r_w;
+            s = tanh(vv/v_eps);
+            m_tot = m_loco + max(m_trail, {0, 'kg'});
+            m_eff = k_rot_loco*m_loco + k_rot_trail*max(m_trail, {0, 'kg'});
+            F = m_tot*g*(Crr*s + grade/100) + 0.5*rho*CdA*vv*abs(vv) + F_brake*s;
+        in
+            t == m_eff*r_w^2*der(w) + F*r_w;
+            v == vv;
+        end
+    end
+end
