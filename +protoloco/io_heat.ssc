@@ -1,0 +1,35 @@
+component io_heat
+    inputs
+        q_cell = {0, 'W'};
+        q_bus = {0, 'W'};
+        q_pre = {0, 'W'};
+        ch1 = {0, 'W'};
+        ch2 = {0, 'W'};
+        ch3 = {0, 'W'};
+        ch4 = {0, 'W'};
+        cu1 = {0, 'W'};
+        cu2 = {0, 'W'};
+        cu3 = {0, 'W'};
+        cu4 = {0, 'W'};
+        gr1 = {0, 'W'};
+        gr2 = {0, 'W'};
+        gr3 = {0, 'W'};
+        gr4 = {0, 'W'};
+        q_aux = {0, 'W'};
+        q_chg = {0, 'W'};
+        q_brk = {0, 'W'};
+    end
+    outputs
+        Q = {zeros(10, 1), '1'};
+    end
+    equations
+        let
+            qch = ch1 + ch2 + ch3 + ch4;
+            qcu = cu1 + cu2 + cu3 + cu4;
+            qgr = gr1 + gr2 + gr3 + gr4;
+            qt = q_cell + q_bus + q_pre + qch + qcu + qgr + q_aux + q_chg + q_brk;
+        in
+            Q == [q_cell; q_bus; q_pre; qch; qcu; qgr; q_aux; q_chg; q_brk; qt]/{1, 'W'};
+        end
+    end
+end

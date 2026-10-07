@@ -11,9 +11,6 @@ component axle
         ia = {0, 'A'};
         va = {0, 'V'};
         idc = {0, 'A'};
-        q_chop = {0, 'W'};
-        q_cu = {0, 'W'};
-        q_gear = {0, 'W'};
     end
     parameters
         G = {4.1333, '1'};
@@ -33,6 +30,7 @@ component axle
         a_loss = {2.5, 'V'};
         b_loss = {2.38e-3, 'Ohm'};
         V_floor = {100, 'V'};
+        P_eps = {1e3, 'W'};
         I_tab = {[0 100 200 400 600 800 1000 1200 1400 1600 1800], 'A'};
         T_tab = {[0 138 510 1752 3413 5302 7300 9339 11378 13399 15393], 'N*m'};
     end
@@ -57,7 +55,7 @@ component axle
             Iref = min(max(sign(Tm_ref)*tablelookup(T_tab, I_tab, abs(Tm_ref), interpolation = linear, extrapolation = nearest), -I_max), I_max);
             Va = min(max(E + R_m*i_a + Kp_i*(Iref - i_a), {0, 'V'}), Vmax);
             Tm = kphi*i_a;
-            Tax = if Tm*wm >= {0, 'W'}, G*Tm*eta_g else G*Tm/eta_g end;
+            Tax = G*Tm*(eta_g + (1/eta_g - eta_g)*0.5*(1 - tanh(Tm*wm/P_eps)));
             Ploss = a_loss*abs(i_a) + b_loss*i_a^2;
         in
             L_a*der(i_a) == Va - E - R_m*i_a;
@@ -66,9 +64,6 @@ component axle
             ia == i_a;
             va == Va;
             idc == i_dc;
-            q_chop == Ploss;
-            q_cu == R_m*i_a^2;
-            q_gear == abs(Tm*wm - Tax*W.w);
         end
     end
 end

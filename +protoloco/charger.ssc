@@ -5,16 +5,19 @@ component charger
     end
     inputs
         P = {0, 'W'};
+        k = {1, '1'};
+        soc = {0.5, '1'};
     end
     outputs
         p_out = {0, 'W'};
-        q = {0, 'W'};
     end
     parameters
         P_max = {3.3e6, 'W'};
         I_max = {2500, 'A'};
-        eta = {0.97, '1'};
         V_floor = {100, 'V'};
+        I_bms = {1884, 'A'};
+        soc_max = {0.95, '1'};
+        soc_band = {0.02, '1'};
     end
     variables
         i = {0, 'A'};
@@ -23,8 +26,7 @@ component charger
         i : n.i -> p.i;
     end
     equations
-        i == min(min(max(P, {0, 'W'}), P_max)/max(p.v - n.v, V_floor), I_max);
+        i == min(min(max(P, {0, 'W'}), P_max)/max(p.v - n.v, V_floor), min(I_max, I_bms*k))*min(max((soc_max - soc)/soc_band, 0), 1);
         p_out == i*(p.v - n.v);
-        q == i*(p.v - n.v)*(1/eta - 1);
     end
 end

@@ -3,6 +3,8 @@ component lcc_proxy
         v_ref = {0, 'm/s'};
         v = {0, 'm/s'};
         Vbat = {0, 'V'};
+        k_dis = {1, '1'};
+        k_chg = {1, '1'};
     end
     outputs
         TE_ax = {0, 'N'};
@@ -19,6 +21,10 @@ component lcc_proxy
         eta_drv = {0.88, '1'};
         v_floor = {0.5, 'm/s'};
         v_blend = {1.5, 'm/s'};
+        m_tot = {1.62e6, 'kg'};
+        mu_park = {0.1, '1'};
+        v_rb = {0.1, 'm/s'};
+        T_aw = {2, 's'};
     end
     variables
         xi = {0, 'N'};
@@ -28,16 +34,18 @@ component lcc_proxy
             e = v_ref - v;
             TE_raw = Kp_v*e + xi;
             vabs = max(abs(v), v_floor);
-            P_dis = min(P_trac_max, I_dis_max*Vbat*eta_drv);
-            P_reg = min(P_trac_max, I_chg_max*Vbat/eta_drv);
+            P_dis = min(P_trac_max, I_dis_max*k_dis*Vbat*eta_drv);
+            P_reg = min(P_trac_max, I_chg_max*k_chg*Vbat/eta_drv);
             TE_mot_lim = min(TE_adh, P_dis/vabs);
             TE_reg_lim = min(TE_adh, P_reg/vabs)*min(abs(v)/v_blend, 1);
             TE_cmd = min(max(TE_raw, -TE_adh), TE_mot_lim);
             TE_el = max(TE_cmd, -TE_reg_lim);
+            F_park = mu_park*m_tot*{9.81, 'm/s^2'};
+            F_hold = if v_ref < {0.01, 'm/s'}, F_park else F_park*min(max(-v/v_rb, 0), 1) end;
         in
-            der(xi) == if v_ref < {0.01, 'm/s'} && abs(v) < {0.05, 'm/s'}, -xi/{1, 's'} elseif (TE_raw > TE_mot_lim && e > {0, 'm/s'}) || (TE_raw < -TE_adh && e < {0, 'm/s'}), {0, 'N/s'} else Ki_v*e end;
+            der(xi) == if v_ref < {0.01, 'm/s'}, -xi/{1, 's'} else Ki_v*e + (TE_cmd - TE_raw)/T_aw end;
             TE_ax == TE_el/N_ax;
-            F_fric == TE_el - TE_cmd;
+            F_fric == TE_el - TE_cmd + F_hold;
         end
     end
 end
