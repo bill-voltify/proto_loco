@@ -54,6 +54,7 @@ PN.ax.T_tab     = P.ax.T_tab;
 PN.ax.D_max     = 0.95;
 PN.ax.w_floor   = 5;
 PN.ax.V_floor   = 100;
+PN.ax.Ts_fw     = 1e-4;
 PN.ax.i_k       = linspace(-2500,2500,401);
 PN.ax.kphi_k    = PN.ax.Kphi_sat*(1 - exp(-max(abs(PN.ax.i_k),PN.ax.If_min)/PN.ax.I0));
 
@@ -80,17 +81,39 @@ PN.veh.tanh_x      = linspace(-1,1,201);
 PN.veh.tanh_f      = tanh(PN.veh.tanh_x/PN.veh.v_eps);
 PN.veh.v0          = 0;
 
+PN.lcc.m_loco      = P.veh.m_loco;
+PN.lcc.k_rot_loco  = P.veh.k_rot_loco;
+PN.lcc.k_rot_trail = P.veh.k_rot_trail;
+PN.lcc.wn          = P.sys.wn_v;
+PN.lcc.zeta        = P.sys.zeta_v;
+PN.lcc.N_ax        = 4;
+PN.lcc.N_str_nom   = P.batt.Np;
+PN.lcc.mu_adh      = P.lcc.mu_adh;
+PN.lcc.P_trac_max  = P.lcc.P_trac_max;
+PN.lcc.I_dis_max   = P.lcc.I_dis_max;
+PN.lcc.I_chg_max   = P.lcc.I_chg_max;
+PN.lcc.eta_drv     = P.lcc.eta_drv;
+PN.lcc.v_floor     = 0.5;
+PN.lcc.v_blend     = 1.5;
+PN.lcc.mu_park     = 0.1;
+PN.lcc.v_rb        = 0.1;
+PN.lcc.T_aw        = 2;
+PN.lcc.g           = 9.81;
+PN.lcc.Ts          = 0.01;
+
 I1C = PN.str.Q_Ah;
 PN.bench.I = [0 0; 10 0; 10 I1C; 1810 I1C; 1810 0; 2400 0; 2400 -0.5*I1C; 3000 -0.5*I1C];
 
 assignin('base','PN',PN);
 assignin('base','I_bench',PN.bench.I);
 
-fprintf('\n== Native string params ==\n');
-fprintf('Ns=%d  Np/string=%g  Q=%g Ah  soc0=%g\n',PN.str.Ns,PN.str.Np,PN.str.Q_Ah,PN.str.soc0);
-fprintf('OCV @ soc0 = %.1f V\n',interp1(PN.SOC,PN.str.V0(:,4),PN.str.soc0));
-fprintf('R0 @25C = %.2f mOhm   R1 @25C = %.2f mOhm\n',PN.str.R0(1,4)*1e3,PN.str.R1(1,4)*1e3);
-fprintf('1C = %g A\n',I1C);
-fprintf('DC-link: R_pre=%g Ohm  C=%g F  k_close=%g  tau=%.0f ms\n',PN.dcl.R_pre,PN.dcl.C,PN.dcl.k_close,PN.dcl.R_pre*PN.dcl.C*1e3);
-fprintf('Axle: G=%.4f  r_w=%.3f m  R_m=%g Ohm  L_a=%g H  kphi@1500A=%.2f V*s/rad\n',PN.ax.G,PN.ax.r_w,PN.ax.R_m,PN.ax.L_a,interp1(PN.ax.i_k,PN.ax.kphi_k,1500));
-fprintf('Vehicle: m_loco=%.0f t  m_trail=%.0f t  m_eff=%.0f t  F_roll=%.1f kN\n',PN.veh.m_loco/1e3,PN.veh.m_trail/1e3,PN.veh.m_eff/1e3,PN.veh.F_roll/1e3);
+ocv0 = interp1(PN.SOC,PN.str.V0(:,4),PN.str.soc0);
+kphi1500 = interp1(PN.ax.i_k,PN.ax.kphi_k,1500);
+fprintf('\n== Native params ==\n');
+fprintf('String: Ns=%d  Np=%g  Q=%g Ah  soc0=%g\n',PN.str.Ns,PN.str.Np,PN.str.Q_Ah,PN.str.soc0);
+fprintf('String: OCV@soc0=%.1f V  R0=%.2f mOhm  R1=%.2f mOhm\n',ocv0,PN.str.R0(1,4)*1e3,PN.str.R1(1,4)*1e3);
+fprintf('DC-link: R_pre=%g Ohm  C=%g F  k_close=%g\n',PN.dcl.R_pre,PN.dcl.C,PN.dcl.k_close);
+fprintf('Axle: G=%.4f  r_w=%.3f m  R_m=%g Ohm  L_a=%g H\n',PN.ax.G,PN.ax.r_w,PN.ax.R_m,PN.ax.L_a);
+fprintf('Axle: kphi@1500A=%.2f V*s/rad  FW Ts=%g s\n',kphi1500,PN.ax.Ts_fw);
+fprintf('Vehicle: m_loco=%.0f t  m_trail=%.0f t  m_eff=%.0f t\n',PN.veh.m_loco/1e3,PN.veh.m_trail/1e3,PN.veh.m_eff/1e3);
+fprintf('LCC: wn=%g  zeta=%g  mu_adh=%g  Ts=%g s\n',PN.lcc.wn,PN.lcc.zeta,PN.lcc.mu_adh,PN.lcc.Ts);
