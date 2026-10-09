@@ -1,5 +1,10 @@
-if ~evalin('base','exist(''P'',''var'')')
-    error('P not in workspace. Run build_loco_system first.');
+needP = ~evalin('base','exist(''P'',''var'')');
+if ~needP
+    needP = ~isstruct(evalin('base','P')) || ~isfield(evalin('base','P'),'batt');
+end
+if needP
+    fprintf('P missing or overwritten: rebuilding with build_loco_system...\n');
+    evalin('base','build_loco_system;');
 end
 P = evalin('base','P');
 
