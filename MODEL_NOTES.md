@@ -254,3 +254,26 @@ Team-facing model in the style of the MathWorks EV examples. See `loco_system/RE
 - **Automatic states:** `load_trace` evaluated blank states only at breakpoints, so a trace with breakpoints at 0 s and 6 h (S8) stayed in SLEEP (HV and TMS off) for the whole run. Blank states are now evaluated on a 1 s grid.
 - **SPAL 12 V radiator fans** (6 × 150 W nominal, POC B12-01/02) added to `load_budget.csv` (STANDBY to FAULT). The LV radiators' heat rejection is not modeled (RSK-NEW-35).
 - **LRU faults:** fault-library rows that share a `fault_id` are applied together (`run_fault_sweep` groups them). New: BTMS_24V_PS_TRIP (all pumps), BTMS_12V_PS_TRIP (chillers off).
+
+## Native Simscape model: thermal approach decision (Oct 9, 2026)
+
+Branch `native-simscape`, model `loco_native`, library `native/lib/loco_native_lib.slx`.
+
+**Decision: Option A (parity first).**
+- Thermal Plant receives heat inputs as signals (`Qb`, `i_a`, `p_chg`, `p_aux`), the same as Phase 3 `thermal.ssc`.
+- Five thermal masses (cells, battery coolant, condenser loop, PE loop, D77 motor) use Foundation thermal blocks.
+- TMS control logic (chiller/heater hysteresis, chiller command, fans, BMS derates, Ptms) moves to a sampled
+  Simulink "TMS Controller" at 10 Hz with a one-sample Unit Delay (native convention NAT-13).
+
+**Deferred: Option B (native thermal coupling), as a variant after the Step 8 regression passes.**
+- Battery Table-Based blocks: enable thermal ports so I^2R heat flows physically into the cell thermal mass.
+- Chopper conduction/switching loss and D77 armature resistor heat delivered through thermal ports.
+- Effects: temperature-dependent resistance becomes physical; per-motor heating becomes visible
+  (Phase 3 uses axle 1 current for all four motors).
+
+**Parameter source:** native uses `P.th`, which differs from `thermal.ssc` defaults:
+Q_mtm 12.0 vs 12.5 kW, k_cop 0.10 vs 0.05, COP_min 1.5 vs 1.2, Q_heat_max 12 vs 24 kW, P_pump 2.77 vs 1.5 kW.
+`f_ram = 0.2` (ram-air fraction) is hard-coded in `thermal.ssc` and not in `P`.
+
+**Native status:** Steps 1-6 pass against Phase 3 (strings, TRB, DC-Link, axle, vehicle, LCC, AUX, charger).
+Open items and bench log: `native/OPEN_ITEMS.md`.
