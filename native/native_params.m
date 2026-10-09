@@ -57,6 +57,29 @@ PN.ax.V_floor   = 100;
 PN.ax.i_k       = linspace(-2500,2500,401);
 PN.ax.kphi_k    = PN.ax.Kphi_sat*(1 - exp(-max(abs(PN.ax.i_k),PN.ax.If_min)/PN.ax.I0));
 
+if evalin('base','exist(''trail_kg'',''var'')')
+    trail = evalin('base','trail_kg');
+else
+    trail = P.veh.m_trail;
+end
+PN.veh.m_loco      = P.veh.m_loco;
+PN.veh.m_trail     = max(trail,0);
+PN.veh.k_rot_loco  = P.veh.k_rot_loco;
+PN.veh.k_rot_trail = P.veh.k_rot_trail;
+PN.veh.m_tot       = PN.veh.m_loco + PN.veh.m_trail;
+PN.veh.m_eff       = PN.veh.k_rot_loco*PN.veh.m_loco + PN.veh.k_rot_trail*PN.veh.m_trail;
+PN.veh.Crr         = P.veh.Crr;
+PN.veh.CdA         = P.veh.CdA;
+PN.veh.rho         = 1.225;
+PN.veh.g           = 9.81;
+PN.veh.v_eps       = 0.1;
+PN.veh.F_roll      = PN.veh.Crr*PN.veh.m_tot*PN.veh.g;
+PN.veh.k_aero      = 0.5*PN.veh.rho*PN.veh.CdA;
+PN.veh.K_grade     = PN.veh.m_tot*PN.veh.g/100;
+PN.veh.tanh_x      = linspace(-1,1,201);
+PN.veh.tanh_f      = tanh(PN.veh.tanh_x/PN.veh.v_eps);
+PN.veh.v0          = 0;
+
 I1C = PN.str.Q_Ah;
 PN.bench.I = [0 0; 10 0; 10 I1C; 1810 I1C; 1810 0; 2400 0; 2400 -0.5*I1C; 3000 -0.5*I1C];
 
@@ -70,3 +93,4 @@ fprintf('R0 @25C = %.2f mOhm   R1 @25C = %.2f mOhm\n',PN.str.R0(1,4)*1e3,PN.str.
 fprintf('1C = %g A\n',I1C);
 fprintf('DC-link: R_pre=%g Ohm  C=%g F  k_close=%g  tau=%.0f ms\n',PN.dcl.R_pre,PN.dcl.C,PN.dcl.k_close,PN.dcl.R_pre*PN.dcl.C*1e3);
 fprintf('Axle: G=%.4f  r_w=%.3f m  R_m=%g Ohm  L_a=%g H  kphi@1500A=%.2f V*s/rad\n',PN.ax.G,PN.ax.r_w,PN.ax.R_m,PN.ax.L_a,interp1(PN.ax.i_k,PN.ax.kphi_k,1500));
+fprintf('Vehicle: m_loco=%.0f t  m_trail=%.0f t  m_eff=%.0f t  F_roll=%.1f kN\n',PN.veh.m_loco/1e3,PN.veh.m_trail/1e3,PN.veh.m_eff/1e3,PN.veh.F_roll/1e3);
