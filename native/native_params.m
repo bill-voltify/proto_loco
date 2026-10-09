@@ -28,6 +28,13 @@ PN.str.AH   = PN.str.Q_Ah*ones(1,nT);
 
 PN.bus.R = P.batt.R_bus;
 
+PN.dcl.R_pre   = P.dcl.R_pre;
+PN.dcl.C       = P.dcl.C_link;
+PN.dcl.k_close = P.dcl.k_close;
+PN.dcl.R_on    = 0.5e-3;
+PN.dcl.R_pre_k = 0.1e-3;
+PN.dcl.V_guard = 100;
+
 I1C = PN.str.Q_Ah;
 PN.bench.I = [0 0; 10 0; 10 I1C; 1810 I1C; 1810 0; 2400 0; 2400 -0.5*I1C; 3000 -0.5*I1C];
 
@@ -39,3 +46,4 @@ fprintf('Ns=%d  Np/string=%g  Q=%g Ah  soc0=%g\n',PN.str.Ns,PN.str.Np,PN.str.Q_A
 fprintf('OCV @ soc0 = %.1f V\n',interp1(PN.SOC,PN.str.V0(:,4),PN.str.soc0));
 fprintf('R0 @25C = %.2f mOhm   R1 @25C = %.2f mOhm\n',PN.str.R0(1,4)*1e3,PN.str.R1(1,4)*1e3);
 fprintf('1C = %g A\n',I1C);
+fprintf('DC-link: R_pre=%g Ohm  C=%g F  k_close=%g  tau=%.0f ms\n',PN.dcl.R_pre,PN.dcl.C,PN.dcl.k_close,PN.dcl.R_pre*PN.dcl.C*1e3);
