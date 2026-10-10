@@ -19,6 +19,11 @@ if strcmpi(baseline, 'poc')
     P.th.P_pump = 2.58e3/0.93; % 6 SPAL pumps 350 W + 8 MTM internal pumps 60 W, via DCC65M24 (93%)
     % Radiator fans: EMP per KULI reviews (7 kW per 3-fan bank) kept by decision 2026-10-08;
     % POC Power Budget lists SPAL VA117 12 V fans (RSK-NEW-35).
+    % PE loop per Vince KULI review 2026-10-09 (3 pumps x 4500 rpm, 223 L/min, 40 C), decided 2026-10-09:
+    P.th.mcp_chop = 1180;      % 19.7 L/min per chopper, 3.4 K rise at 4.02 kW (was 1430)
+    P.th.mcp_inv = 1100;       % front inverter 18.1 L/min, 3.1 K rise at 3.41 kW (was 950)
+    % Held pending suppliers: chopper loss model (NAT-43), charger 55 C limit location (NAT-44),
+    % P_pump vs KULI 1.15 kW (NAT-45), per-device inverter/aux heat split (NAT-46).
 end
 P.sys.wn_v = 0.2;
 P.sys.zeta_v = 0.8;

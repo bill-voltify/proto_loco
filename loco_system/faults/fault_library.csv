@@ -4,6 +4,7 @@ MTM_LOSS_2,F55,Two Maxwell chiller modules lost (2 of 4),n_mtm,2,0,1e9,0
 PE_FAN_FAIL,F54,PE radiator fans failed (ram/natural air only),fan_pe,0,0,1e9,0
 COND_FAN_FAIL,F55,Condenser radiator fans failed,fan_cd,0,0,1e9,0
 PE_PUMP_FAIL,F54,PE loop pumps failed (5% residual flow),pump_pe,0.05,0,1e9,0
+PE_PUMP_1OF3,F54,One of three PE SPAL pumps failed; two at 4750 rpm keep 95.4% flow (KULI 2026-10-09 App B),pump_pe,0.954,0,1e9,0
 BAT_PUMP_FAIL,TBD,Battery coolant pump failed,pump_bat,0,0,1e9,0
 AXLE4_CUTOUT,F50,Axle 4 chopper/motor cut out (3 of 4 axles),n_ax_on,3,0,1e9,0
 STRING_OPEN_1,TBD,One battery string isolated (11 of 12),n_str,11,0,1e9,0
