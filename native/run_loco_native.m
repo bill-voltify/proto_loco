@@ -18,6 +18,7 @@ p.addParameter('Silent',true);
 p.addParameter('Baseline','poc');
 p.addParameter('UseBudget',false);
 p.addParameter('StopTime',[]);
+p.addParameter('Decimation',100);
 p.parse(varargin{:});
 o = p.Results;
 
@@ -61,6 +62,14 @@ switch lower(o.Plant)
         id = 2;
         in = in.setModelParameter('SolverType','Fixed-step','Solver','ode14x','FixedStep','1e-3', ...
             'StopTime',num2str(tend));
+        if o.Decimation > 1
+            ws = warning('off','all');
+            tw = find_system(m,'LookUnderMasks','all','FollowLinks','off','BlockType','ToWorkspace');
+            warning(ws);
+            for k = 1:numel(tw)
+                try, in = in.setBlockParameter(tw{k},'Decimation',num2str(o.Decimation)); catch, end
+            end
+        end
     case 'phase3'
         id = 1;
         in = in.setModelParameter('SolverType','Variable-step','Solver','daessc', ...
