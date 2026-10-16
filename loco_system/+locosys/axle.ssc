@@ -18,8 +18,8 @@ component axle
         eta_g = {0.97, '1'};
         R_m = {0.035, 'Ohm'};
         L_a = {10e-3, 'H'};
-        Kphi_sat = {9.0, 'V*s/rad'};
-        I0 = {600, 'A'};
+        I_kphi = {[0 50 100 200 300 400 500 600 800 1000 1200 1500 1800 2000], 'A'};
+        Kphi_tab = {[0 1.36 2.38 3.80 4.75 5.43 5.94 6.33 6.91 7.30 7.60 7.91 8.14 8.25], 'V*s/rad'};
         If_min = {50, 'A'};
         I_max = {1500, 'A'};
         V_mot_max = {750, 'V'};
@@ -46,7 +46,7 @@ component axle
     equations
         let
             wm = G*W.w;
-            kphi = Kphi_sat*(1 - exp(-max(abs(i_a), If_min)/I0));
+            kphi = tablelookup(I_kphi, Kphi_tab, max(abs(i_a), If_min), interpolation = linear, extrapolation = nearest);
             E = kphi*wm;
             Vdc = p.v - n.v;
             Vmax = min(D_max*max(Vdc, {0, 'V'}), V_mot_max);

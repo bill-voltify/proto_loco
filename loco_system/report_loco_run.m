@@ -21,7 +21,14 @@ R.ambient = interp1(TR.SCN(:,1), TR.SCN(:,4), t, 'linear', 'extrap');
 
 % verdict using the Phase 2 rules
 U = [t, R.v_ref, interp1(TR.SCN(:,1), TR.SCN(:,3), t), R.P_aux_cmd, R.P_chg_cmd];
-scn = struct('name', char(TR.name), 'speed_check', true);
+% speed_check follows the scenario definition (S6 Notch 8: v_ref unreachable by design -> false);
+% traces not in proto_scenarios (e.g. CSX4091) keep the speed check.
+S = proto_scenarios();
+[~, nm] = fileparts(char(TR.name));
+k = find(strcmp({S.name}, nm), 1);
+chk = true;
+if ~isempty(k), chk = S(k).speed_check; end
+scn = struct('name', char(TR.name), 'speed_check', chk);
 M = eval_thermal_run(R, P, scn, U);
 
 % time in state
@@ -55,6 +62,11 @@ if ~silent
         M.Tcell_min, M.Tcell_max, M.Tsup_max, M.Tinv_out_max, M.Tcond_max, M.Tmotor_max);
     fprintf('SOC %.1f%% -> %.1f%% | battery out %.0f kWh, in %.0f kWh | TMS %.0f kWh | aux budget %.0f kWh\n', ...
         100*R.soc(1), 100*R.soc(end), E.bat_out_kWh, E.bat_in_kWh, E.tms_kWh, E.aux_budget_kWh);
+    if isfield(P.sys, 'demo_chg_P_max_W') && max(R.p_chg) > 1e3
+        Pw = max(R.P_chg_cmd)/1e6;
+        fprintf('Charge request peak %.2f MW vs demo limit %.2f MW at the wire (DR-17)%s\n', Pw, P.sys.demo_chg_P_max_W/1e6, ...
+            repmat(' -> ABOVE DEMO LIMIT (bounding case)', 1, Pw > P.sys.demo_chg_P_max_W/1e6 + 1e-3));
+    end
     if height(RUN.faults) > 0
         fprintf('Faults applied: %s\n', strjoin(RUN.faults.fault_id, ', '));
     end

@@ -34,8 +34,8 @@ component locomotive_sys
         eta_g = {0.97, '1'};
         R_m = {0.035, 'Ohm'};
         L_a = {10e-3, 'H'};
-        Kphi_sat = {9.0, 'V*s/rad'};
-        I0 = {600, 'A'};
+        I_kphi = {[0 50 100 200 300 400 500 600 800 1000 1200 1500 1800 2000], 'A'};
+        Kphi_tab = {[0 1.36 2.38 3.80 4.75 5.43 5.94 6.33 6.91 7.30 7.60 7.91 8.14 8.25], 'V*s/rad'};
         If_min = {50, 'A'};
         I_max = {1500, 'A'};
         V_mot_max = {750, 'V'};
@@ -121,10 +121,10 @@ component locomotive_sys
     components (ExternalAccess = observe)
         bat = locosys.battery(Ns = Ns, Np = Np, Q_cell = Q_cell, R0_cell = R0_cell, R1_cell = R1_cell, tau1 = tau1, R_bus = R_bus, soc0 = soc0, SOC_tab = SOC_tab, OCV_tab = OCV_tab, B_R = B_R, T_ref = T_ref);
         dcl = locosys.dclink(R_pre = R_pre, C = C_link, k_close = k_close);
-        ax1 = locosys.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, Kphi_sat = Kphi_sat, I0 = I0, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
-        ax2 = locosys.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, Kphi_sat = Kphi_sat, I0 = I0, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
-        ax3 = locosys.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, Kphi_sat = Kphi_sat, I0 = I0, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
-        ax4 = locosys.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, Kphi_sat = Kphi_sat, I0 = I0, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
+        ax1 = locosys.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, I_kphi = I_kphi, Kphi_tab = Kphi_tab, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
+        ax2 = locosys.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, I_kphi = I_kphi, Kphi_tab = Kphi_tab, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
+        ax3 = locosys.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, I_kphi = I_kphi, Kphi_tab = Kphi_tab, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
+        ax4 = locosys.axle(G = G_ratio, r_w = r_w, eta_g = eta_g, R_m = R_m, L_a = L_a, I_kphi = I_kphi, Kphi_tab = Kphi_tab, If_min = If_min, I_max = I_max, V_mot_max = V_mot_max, P_ax_max = P_ax_max, Kp_i = Kp_i, a_loss = a_loss, b_loss = b_loss, I_tab = I_tab, T_tab = T_tab);
         veh = locosys.vehicle(r_w = r_w, m_loco = m_loco, k_rot_loco = k_rot_loco, k_rot_trail = k_rot_trail, Crr = Crr, CdA = CdA);
         aux = locosys.auxload(eta = eta_aux, P_max = P_aux_max);
         chg = locosys.charger(P_max = P_chg_max, I_max = I_chg_hw, I_bms = I_chg_bms, soc_max = soc_max, soc_band = soc_band);

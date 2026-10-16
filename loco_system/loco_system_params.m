@@ -5,6 +5,12 @@ function P = loco_system_params(opts)
 %   thermal parameters, used by run_regression_phase2).
 %   regen: true/false. Default = false for 'poc' (prototype has no regen/dynamic brake; all
 %   braking is friction), true for 'phase2' (keeps the Phase 2 regression comparable).
+%   Rev C drivetrain options ('poc' only; 'phase2' stays frozen):
+%   wheel_in:        wheel diameter, in (default 42, per Jonathan 2026-10-15; 40 = GP40/GP38-2 std)
+%   chop_loss:       'integral_sim' (default, Integral 1170 A loss table 2026-10-15) | 'deck' (5.25 kW @ 1050 A)
+%   chop_loss_scale: multiplier on integral_sim losses (default 1; 2 if Integral confirms per-module basis)
+%   motor_cap_kW:    per-motor power cap, kW (default 536 = D77 FRA rating; 373 = 500 hp prototype limit)
+%   motor_flux:      'd77_chart' (default, fit to reference/D77-D78.pdf speed lines) | 'legacy' (9.0*(1-exp(-I/600)))
 here = fileparts(mfilename('fullpath'));
 addpath(fileparts(here));
 if nargin < 1, opts = struct(); end
@@ -13,8 +19,16 @@ if isfield(opts, 'baseline') && ~isempty(opts.baseline), baseline = opts.baselin
 regen = [];
 if isfield(opts, 'regen'), regen = opts.regen; opts = rmfield(opts, 'regen'); end
 if isempty(regen), regen = ~strcmpi(baseline, 'poc'); end
+[wheel_in, opts] = take(opts, 'wheel_in', 42);
+[chop_loss, opts] = take(opts, 'chop_loss', 'integral_sim');
+[chop_scale, opts] = take(opts, 'chop_loss_scale', 1);
+[motor_cap_kW, opts] = take(opts, 'motor_cap_kW', 536);
+[motor_flux, opts] = take(opts, 'motor_flux', 'd77_chart');
 P = proto_loco_params(opts);
 P.sys.baseline = baseline;
+% Motor flux as a lookup table (axle.ssc Rev C). Legacy curve reproduces the Phase 2 analytic Kphi.
+P.ax.I_kphi = 0:10:2000;
+P.ax.Kphi_tab = P.ax.Kphi_sat*(1 - exp(-max(P.ax.I_kphi, P.ax.If_min)/P.ax.I0));
 if strcmpi(baseline, 'poc')
     % POC Power Budget Rev B (Micah, 2026-09-22) alignment, decided 2026-10-08:
     P.th.Q_heat_max = 12e3;    % 1 x Webasto HVH120, 12 kW (was 24 kW Maxwell study)
@@ -24,6 +38,56 @@ if strcmpi(baseline, 'poc')
     P.th.P_pump = 2.58e3/0.93; % 6 SPAL pumps 350 W + 8 MTM internal pumps 60 W, via DCC65M24 (93%)
     % Radiator fans: EMP per KULI reviews (7 kW per 3-fan bank) kept by decision 2026-10-08;
     % POC Power Budget lists SPAL VA117 12 V fans (RSK-NEW-35).
+
+    % Rev C drivetrain (2026-10-15)
+    % Wheel: 42 in per Jonathan (D77/D78 curves review); D77 chart basis is 62:15 / 40 in.
+    P.ax.r_w = wheel_in/2*0.0254;
+    % Motor flux: D77 curve, 40 in / 62:15 (reference/D77-D78.pdf, Jonathan 2026-10-15). Kphi read from the
+    %   40/45/50/55 mph lines with E = V - 0.030*I (stall line: 60 V @ 2000 A), fitted Kphi = 9.488*I/(299+I):
+    %   within 1% at 300-1100 A; -6% at 2000 A (above I_max). Legacy exp fit was 10-26% low below 600 A.
+    switch lower(motor_flux)
+        case 'd77_chart'
+            P.ax.Kphi_tab = 9.488*P.ax.I_kphi./(299 + P.ax.I_kphi);
+        case 'legacy'
+        otherwise
+            error('motor_flux must be ''d77_chart'' or ''legacy''');
+    end
+    P.ax.T_tab = interp1(P.ax.I_kphi, P.ax.Kphi_tab, max(P.ax.I_tab, P.ax.If_min)).*P.ax.I_tab;
+    % D77 current ratings (same chart): continuous 1050 A, 15 min 1150 A, 5 min 1500 A (= I_max).
+    P.ax.I_cont = 1050;
+    P.ax.I_15min = 1150;
+    P.ax.I_5min = 1500;
+    % Chopper loss: Integral sim, 1170 A, 500 Hz (J. Jankowski 2026-10-15):
+    %   switching 996+584 = 1580 W (linear in I, prop. to f); conduction 45+859 / 269+633 = 904 W (duty-independent).
+    %   Conduction fitted as a*I + b*I^2 to 904*(I/1170)^1.5 at 600 A and 1500 A. Total 2.47 kW @ 1170 A.
+    %   'deck' = previous 5.25 kW @ 1050 A (2.5 V, 2.38 mOhm).
+    switch lower(chop_loss)
+        case 'integral_sim'
+            P.ax.a_loss = chop_scale*(1580/1170 + 0.339);
+            P.ax.b_loss = chop_scale*3.57e-4;
+        case 'deck'
+            P.ax.a_loss = 2.5;
+            P.ax.b_loss = 2.38e-3;
+        otherwise
+            error('chop_loss must be ''integral_sim'' or ''deck''');
+    end
+    P.th.a_loss = P.ax.a_loss;
+    P.th.b_loss = P.ax.b_loss;
+    % Motor power cap: 536 kW = D77 FRA input rating; 373 kW = 500 hp prototype limit (Jonathan).
+    P.ax.P_ax_max = min(655e3, motor_cap_kW*1e3);
+    P.lcc.P_trac_max = 4*motor_cap_kW*1e3;
+    % Control latency (Integral): chopper loop 2 ms, CAN 10 ms, LCC 10 ms, worst case ~22 ms end to end.
+    % Not modeled: below Ts_ctrl / MaxStep (1 s). Protection trips are local hardware on the ITC board.
+    P.sys.ctrl_latency_s = 0.022;
+    % OBC (AUX-B002): 55 C max applies to coolant INLET; 2 loops x 30 LPM, 6 C rise, ~21 kW at 3 MW.
+    % Existing th.eta_chg 0.9934 and th.mcp_chg 3600 W/K (60 LPM 50/50 EGW) agree; unchanged.
+    P.sys.chg_inlet_max_C = 55;
+    % Demo charge limit (DR-17, Jonathan 2026-10-12, adopted 2026-10-16): Jacksonville ground ESS 4.2 MWh at 0.5C
+    % = 2.1 MW at the wire, and wire current <= 1,666 A (2 x 833 A DPS100). Set by the trace wire_kW (S9 = 2,100 kW);
+    % report_loco_run flags any charge above it. Loco side: 2.1 MW / 5.02 MWh = 0.42C (below the Jinko 0.5C rating).
+    P.sys.demo_chg_P_max_W = 2.1e6;
+    P.sys.demo_chg_I_wire_max_A = 1666;
+    P.sys.drivetrain_rev = sprintf('RevC wheel=%gin chop=%s x%g cap=%gkW flux=%s', wheel_in, chop_loss, chop_scale, motor_cap_kW, motor_flux);
 end
 % Regen gate (2026-10-15): the LCC proxy's regen limit is P_reg = I_chg_max*Vbat/eta_drv, and
 % I_chg_max is used nowhere else in the Phase 3 plant (charging uses P.chg.I_hw / P.chg.I_bms).
@@ -43,4 +107,12 @@ P.sys.fault_channels = {'n_mtm','fan_pe','fan_cd','pump_pe','pump_bat','n_ax_on'
                         'blower_ok','comms_ok','aux_ok','chg_derate','estop','classA'};
 P.sys.fault_nominal = [4 1 1 1 1 4 12 0 1 1 1 1 0 0];
 P.sys.max_step = 1;
+end
+
+function [v, s] = take(s, name, default)
+v = default;
+if isfield(s, name)
+    if ~isempty(s.(name)), v = s.(name); end
+    s = rmfield(s, name);
+end
 end

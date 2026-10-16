@@ -10,7 +10,7 @@ cases = {
     'peak2h', 'traces/CSX4091_20260826_peak2h.csv',  78.4
     'yard',   'traces/CSX4091_20260826_yard.csv',   331.1
     };
-runFull = false;
+runFull = true;
 
 soc0  = 0.90;
 T0_C  = 25;
