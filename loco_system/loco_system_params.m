@@ -3,11 +3,16 @@ function P = loco_system_params(opts)
 %   opts fields as proto_loco_params (T_amb_C = initial ambient, T0_C, soc0, I_chg_bms, bms), plus
 %   baseline: 'poc' (default; aligned with Micah's POC Power Budget Rev B) or 'phase2' (frozen Phase 2
 %   thermal parameters, used by run_regression_phase2).
+%   regen: true/false. Default = false for 'poc' (prototype has no regen/dynamic brake; all
+%   braking is friction), true for 'phase2' (keeps the Phase 2 regression comparable).
 here = fileparts(mfilename('fullpath'));
 addpath(fileparts(here));
 if nargin < 1, opts = struct(); end
 baseline = 'poc';
 if isfield(opts, 'baseline') && ~isempty(opts.baseline), baseline = opts.baseline; opts = rmfield(opts, 'baseline'); end
+regen = [];
+if isfield(opts, 'regen'), regen = opts.regen; opts = rmfield(opts, 'regen'); end
+if isempty(regen), regen = ~strcmpi(baseline, 'poc'); end
 P = proto_loco_params(opts);
 P.sys.baseline = baseline;
 if strcmpi(baseline, 'poc')
@@ -19,6 +24,14 @@ if strcmpi(baseline, 'poc')
     P.th.P_pump = 2.58e3/0.93; % 6 SPAL pumps 350 W + 8 MTM internal pumps 60 W, via DCC65M24 (93%)
     % Radiator fans: EMP per KULI reviews (7 kW per 3-fan bank) kept by decision 2026-10-08;
     % POC Power Budget lists SPAL VA117 12 V fans (RSK-NEW-35).
+end
+% Regen gate (2026-10-15): the LCC proxy's regen limit is P_reg = I_chg_max*Vbat/eta_drv, and
+% I_chg_max is used nowhere else in the Phase 3 plant (charging uses P.chg.I_hw / P.chg.I_bms).
+% Setting it to 0 makes TE_el >= 0; lcc_proxy already routes the remaining braking demand to
+% F_fric (friction brake). No rebuild needed: mask parameters are read from P at sim time.
+P.sys.regen = logical(regen);
+if ~P.sys.regen
+    P.lcc.I_chg_max = 0;
 end
 P.sys.wn_v = 0.2;
 P.sys.zeta_v = 0.8;

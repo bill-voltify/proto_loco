@@ -16,6 +16,7 @@ function RUN = run_loco_system(trace, varargin)
 %   Build           force rebuild of the model (false)
 %   Baseline        'poc' (Micah's POC Power Budget, default) | 'phase2' (regression)
 %   UseBudget       true = ignore the trace's aux_override_kW and use load_budget.csv (false)
+%   Regen           true/false; [] = by baseline ('poc' -> false, prototype has no regen; 'phase2' -> true)
 here = fileparts(mfilename('fullpath'));
 addpath(here); addpath(fileparts(here));
 p = inputParser;
@@ -33,6 +34,7 @@ p.addParameter('Build', false);
 p.addParameter('Silent', false);
 p.addParameter('Baseline', 'poc');
 p.addParameter('UseBudget', false);
+p.addParameter('Regen', []);
 p.parse(varargin{:});
 o = p.Results;
 
@@ -50,7 +52,7 @@ else
     F = load_fault_table(ff);
 end
 P = loco_system_params(struct('T_amb_C', TR.ambient0_C, 'T0_C', o.T0_C, 'soc0', o.soc0, ...
-    'I_chg_bms', o.I_chg_bms, 'bms', o.bms, 'baseline', o.Baseline));
+    'I_chg_bms', o.I_chg_bms, 'bms', o.bms, 'baseline', o.Baseline, 'regen', o.Regen));
 if o.UseBudget, TR.SCN(:, 7) = -1; end
 FLT = build_fault_matrix(F, TR.t_end, P);
 B = load_budget_table(o.Budget);
