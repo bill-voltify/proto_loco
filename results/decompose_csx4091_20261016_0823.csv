@@ -1,0 +1,79 @@
+case,group,item,value,unit,pct_of_source
+peak2h,source,"Battery chemical (net)",159.404640452153,kWh,100
+peak2h,source,"Charger in (at battery)",6.59401071025853e-31,kWh,4.1366491537226e-31
+peak2h,loss,"Battery I2R",0.198439647207366,kWh,0.124487998997074
+peak2h,load,"Aux loads (budget)",23.1382133825171,kWh,14.5153951082512
+peak2h,load,"TMS",6.9454919222961,kWh,4.35714537707005
+peak2h,loss,"Aux converter",1.25091191591372,kWh,0.784739962629382
+peak2h,loss,"DC-link / precharge",0.0243822643301934,kWh,0.0152958309501109
+peak2h,loss,"Chopper",2.66044693863886,kWh,1.66898964239214
+peak2h,loss,"Motor copper",36.8336056702083,kWh,23.106984568159
+peak2h,loss,"Gear",2.64875172476697,kWh,1.66165283347697
+peak2h,check,"Residual (L, C storage)",-2.8421709430404e-14,kWh,-1.78299134515693e-14
+peak2h,output,"Wheel (net)",85.7043969862742,kWh,53.7653086780741
+peak2h,output,"Wheel motoring (+)",85.7046211286887,kWh,53.765449290301
+peak2h,output,"Wheel braking (-)",-0.000224142414568808,kWh,-0.000140612226804079
+peak2h,source,"Wire energy (charger in)",6.63782032439957e-31,kWh,NaN
+peak2h,vehicle,"Kinetic (net)",1.01012297539494,kWh,NaN
+peak2h,vehicle,"Rolling",49.7747506093476,kWh,NaN
+peak2h,vehicle,"Grade",-3.86898401362369,kWh,NaN
+peak2h,vehicle,"Aero",0.0779847440453693,kWh,NaN
+peak2h,vehicle,"Friction brake",38.7171115096198,kWh,NaN
+peak2h,vehicle,"Residual (interp)",-0.00658883850977077,kWh,NaN
+peak2h,efficiency,"battery",99.8684245428941,%,NaN
+peak2h,efficiency,"dclink",99.9894716444415,%,NaN
+peak2h,efficiency,"chopper",97.9207365796663,%,NaN
+peak2h,efficiency,"motor",70.4777252268964,%,NaN
+peak2h,efficiency,"gear",97.0020220925162,%,NaN
+peak2h,efficiency,"drivetrain",66.9433339294757,%,NaN
+peak2h,efficiency,"bat_to_wheel_motoring",60.3082223293922,%,NaN
+peak2h,efficiency,"bat_to_wheel_day",53.765449290301,%,NaN
+peak2h,time,"total",1.99972222222222,h,NaN
+peak2h,time,"motoring",0.647499235205895,h,NaN
+peak2h,time,"coast_brake",0.465905304340984,h,NaN
+peak2h,time,"standstill",0.886317682675343,h,NaN
+peak2h,standstill,"Chem energy at standstill",7.50424967837217,kWh,4.70767328798352
+peak2h,standstill,"Aux bus at standstill",7.47499696027826,kWh,4.6893220542861
+peak2h,benchmark,"Recorder rail energy",78.4,kWh,NaN
+peak2h,benchmark,"Model wheel / recorder rail",1.09317118786593,ratio,NaN
+peak2h,benchmark,"Chem out per recorder rail kWh",2.03322245474685,ratio,NaN
+peak2h,check,"Chopper loss basis: integral_sim (Rev C)",2.66044693863886,kWh,NaN
+yard,source,"Battery chemical (net)",812.958440767099,kWh,100
+yard,source,"Charger in (at battery)",2.72239852856295e-29,kWh,3.34875485885124e-30
+yard,loss,"Battery I2R",0.531421279470675,kWh,0.0653688125765977
+yard,load,"Aux loads (budget)",208.963321084702,kWh,25.7040594704358
+yard,load,"TMS",88.676387499791,kWh,10.9078623276384
+yard,loss,"Aux converter",12.3705875308026,kWh,1.52167526781933
+yard,loss,"DC-link / precharge",0.0451863700408469,kWh,0.00555826322415812
+yard,loss,"Chopper",11.3646384182612,kWh,1.39793596429575
+yard,loss,"Motor copper",110.521509706943,kWh,13.5949765897819
+yard,loss,"Gear",11.3868839171235,kWh,1.40067232789649
+yard,check,"Residual (L, C storage)",-2.8421709430404e-12,kWh,-3.49608393309572e-13
+yard,output,"Wheel (net)",369.098504959966,kWh,45.4018909763319
+yard,output,"Wheel motoring (+)",369.0992545315,kWh,45.4019831792658
+yard,output,"Wheel braking (-)",-0.000749571535623209,kWh,-9.22029341273487e-05
+yard,source,"Wire energy (charger in)",2.74048573441006e-29,kWh,NaN
+yard,vehicle,"Kinetic (net)",0.0446796455099463,kWh,NaN
+yard,vehicle,"Rolling",194.397936909016,kWh,NaN
+yard,vehicle,"Grade",-7.99626428581742,kWh,NaN
+yard,vehicle,"Aero",1.12132246826388,kWh,NaN
+yard,vehicle,"Friction brake",181.557320227154,kWh,NaN
+yard,vehicle,"Residual (interp)",-0.0264900041601095,kWh,NaN
+yard,efficiency,"battery",99.9201776346112,%,NaN
+yard,efficiency,"dclink",99.9932494035277,%,NaN
+yard,efficiency,"chopper",97.7474761924532,%,NaN
+yard,efficiency,"motor",77.4179381705849,%,NaN
+yard,efficiency,"gear",97.0069837729865,%,NaN
+yard,efficiency,"drivetrain",73.4091431675257,%,NaN
+yard,efficiency,"bat_to_wheel_motoring",59.543011075858,%,NaN
+yard,efficiency,"bat_to_wheel_day",45.4019831792658,%,NaN
+yard,time,"total",25.4825,h,NaN
+yard,time,"motoring",5.41774541714201,h,NaN
+yard,time,"coast_brake",3.3213628227817,h,NaN
+yard,time,"standstill",16.7433917600763,h,NaN
+yard,standstill,"Chem energy at standstill",122.803192693376,kWh,15.1057159302633
+yard,standstill,"Aux bus at standstill",122.657897477468,kWh,15.0878435263837
+yard,benchmark,"Recorder rail energy",331.1,kWh,NaN
+yard,benchmark,"Model wheel / recorder rail",1.11476670048777,ratio,NaN
+yard,benchmark,"Chem out per recorder rail kWh",2.45532600654515,ratio,NaN
+yard,check,"Chopper loss basis: integral_sim (Rev C)",11.3646384182612,kWh,NaN
