@@ -1,0 +1,2 @@
+scenario,ic,T_amb,verdict_p3,verdict_nat,dTcell_max,dTsup_max,dTcond_max,dsoc_end,dv_rms_mph,dib_rms_A,p3_solver_warn,nat_solver_warn,wall_p3,wall_nat,pass
+S7_switch_shift_8h,soaked,25,OPTIMAL,OPTIMAL,2.18725592731062e-05,-0.000291048649330605,0,-3.34816156877249e-06,0.00122359604027786,2.02673251052927,994,0,33.3269547,21132.7231362,1

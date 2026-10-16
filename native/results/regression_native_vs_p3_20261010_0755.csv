@@ -1,0 +1,2 @@
+scenario,ic,T_amb,verdict_p3,verdict_nat,dTcell_max,dTsup_max,dTcond_max,dsoc_end,dv_rms_mph,dib_rms_A,p3_solver_warn,nat_solver_warn,wall_p3,wall_nat,pass
+S3_dyncharge_2p5MW,soaked,40,OK,OK,1.09805904457971e-06,0.00131640173901815,-1.94972926692571e-11,-8.98984571229278e-08,0.000419473722790566,3.97508170953838,18,0,3.7357277,4621.7476833,1

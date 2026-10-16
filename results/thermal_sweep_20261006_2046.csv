@@ -1,0 +1,398 @@
+scenario,T_amb,T0,Tcell_max,Tcell_min,Tcell_end,Tsup_max,Tchg_out_max,Tchg_sup_max,Tchop_out_max,Tinv_out_max,Tcond_max,Tmotor_max,k_dis_min,k_chg_min,q_bat_max_kW,q_chill_max_kW,E_tms_kWh,E_bat_out_kWh,E_bat_in_kWh,soc_end,v_max,speed_ok,verdict,limit,pe_margin_K,ic
+S1_first_move,0,0,0.152447709655632,0,0.152447709655632,2.16282116432109,2.16282116432109,-Inf,2.16282116432109,4.24617654258589,0,0,0,1,17.8656857531523,0,2.87670552416752,9.88195190954097,0,0.498082093601427,1.03739578457073e-19,1,FAIL,"cell <= BMS L2 cold",55.7538234574141,soaked
+S1_first_move,10,10,10.1523137732693,10,10.1523137732693,12.3060942724493,12.3060942724493,-Inf,12.4153321521075,14.4213336449077,10,10.0495161200689,1,1,22.2533141341242,0,2.87672159006222,10.2036109299494,0,0.498020213366478,3.21812709431468,1,OK,"cell 10-10 C outside 15-35 C",45.5786663550923,soaked
+S1_first_move,20,20,20.0002772904142,20,20.0002772904142,21.8301457681722,21.8301457681722,-Inf,21.9568091973875,23.4328554830582,20,20.0495160088046,1,1,26.8290204141887,0,0.243374999978128,7.46054739695998,0,0.498552777378472,3.21812967147425,1,OPTIMAL,"",36.5671445169418,soaked
+S1_first_move,40,40,40.0000000145708,39.6787540462348,39.6787540462348,42.3874618871253,42.3874618871253,-Inf,42.4912530800161,44.5956992196359,62.9190037360764,40.0495160447227,1,1,36.9253244114073,56.5712034455553,3.30924586560364,10.6541648064257,0,0.497933291485096,3.21810677383221,1,OK,"cell 40-40 C outside 15-35 C",2.08099626392362,soaked
+S1_first_move,50,50,50.0000000126276,49.7350324883892,49.7350324883892,52.4095019977261,52.4095019977261,-Inf,52.51639801148,54.6303967238429,69.3896503623973,50.0481717749306,0.000202829250215843,1,41.8166248518141,47.0604106110371,3.45897396675765,10.7807044286191,0,0.497908822139973,3.2180662612017,1,FAIL,"cell >= BMS L2 hot; condenser loop > 65 C (check valve)",-4.38965036239728,soaked
+S2_showcase1,0,0,0.953548122902419,0,0.953548122902419,2.68724767342758,2.68724767342752,-Inf,2.68724767342752,4.84075542994628,0,0,-5.2067446091827e-44,1,17.8656857531523,0,10.88225872451,41.0162052650111,0,0.49203842002261,1.72993955299595e-34,0,FAIL,"cell <= BMS L2 cold",55.1592445700537,soaked
+S2_showcase1,10,10,10.9534163490782,10,10.9534163490782,12.9578662788953,12.9578662788953,-Inf,13.2089948982763,15.1113750508251,10,10.1941537319782,1,1,22.2533141341242,0,10.8822770861773,45.7565061528901,0,0.491119192065957,10.3622694385671,1,OK,"cell 10-11 C outside 15-35 C",44.8886249491749,soaked
+S2_showcase1,20,20,20.001615943154,20,20.001615943154,22.4028187296401,22.40281872964,-Inf,22.6539490778032,24.0300117120962,20,20.194153749284,1,1,26.8290204141887,0,0.91559722220035,35.3745539917292,0,0.49313629825917,10.3622781319728,1,OPTIMAL,"",35.9699882879038,soaked
+S2_showcase1,40,40,40.0000000145708,38.0769387705395,38.0769387705395,43.0744367544983,43.0744367544983,-Inf,43.3255586913424,45.3394999231234,62.9740466952099,40.1941537662904,1,1,36.9253244114073,56.5711361162718,12.8457673564054,47.8018146507947,0,0.490724789117413,10.362273769702,1,OK,"cell 38-40 C outside 15-35 C",2.02595330479011,soaked
+S2_showcase1,50,50,50.0000000126276,48.4353254482971,48.4353254482971,53.0711418766537,53.0711418766537,-Inf,53.3222698435277,55.331992804811,69.389832678239,50.1920762923065,0.000186421901330083,1,41.8166248518141,47.0597795651413,12.9601664557114,47.700174418662,0,0.490745052969685,10.0198301647001,1,FAIL,"cell >= BMS L2 hot; condenser loop > 65 C (check valve)",-4.38983267823903,soaked
+S3_dyncharge_2p5MW,0,0,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0,ERROR,"Simulink will stop the simulation of model '<a href=""matlab:open_system ('proto_loco')"">proto_loco</a>' because the 10 zero crossing signal(s) identified below caused 1000 consecutive zero crossing events in time interval between 120.00000060519014 and 120.00000060701788.
+ 
+Number of consecutive ZCs : 757
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 757
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 67)"">between line: 57, column: 67 and line: 57, column: 77 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,67'
+
+
+Number of consecutive ZCs : 757
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 757
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 67)"">between line: 57, column: 67 and line: 57, column: 77 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,67'
+
+
+Number of consecutive ZCs : 757
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 757
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 67)"">between line: 57, column: 67 and line: 57, column: 77 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,67'
+
+
+Number of consecutive ZCs : 757
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 757
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 67)"">between line: 57, column: 67 and line: 57, column: 77 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,67'
+
+
+Number of consecutive ZCs : 941
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.lcc_proxy'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\lcc_proxy.ssc', 38, 21)"">between line: 38, column: 21 and line: 38, column: 44 in file: D:\Matlab\+protoloco\lcc_proxy.ssc</a>'
+          ZC location tag : 'protoloco.lcc_proxy,38,21'
+
+
+Number of consecutive ZCs : 957
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.thermal'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\thermal.ssc', 113, 20)"">between line: 113, column: 20 and line: 113, column: 39 in file: D:\Matlab\+protoloco\thermal.ssc</a>'
+          ZC location tag : 'protoloco.thermal,113,20'
+
+ ",NaN,soaked
+S3_dyncharge_2p5MW,10,10,16.9227549464429,10,16.7942215469115,17.5161272454314,22.1299115552092,17.5161272454314,17.6517559635566,19.669636017322,10,10.5085000606605,1,1,33.4592479504534,0,19.3833929489041,4.34758501748849,3922.69528042264,0.949106463820505,0.521888905725505,1,OK,"cell 10-17 C outside 15-35 C",37.4838727545686,soaked
+S3_dyncharge_2p5MW,20,20,24.4151341973148,20,24.3315837697958,26.9608452176896,31.5746295274674,26.9608452176896,27.0964739358148,28.5880382001457,20,20.5085000615811,1,1,27.1124308349852,0,4.88781944439306,3.54099691392175,3913.63346363266,0.949106476652771,0.521884893417169,1,OPTIMAL,"",28.0391547823104,soaked
+S3_dyncharge_2p5MW,40,40,40.0000000155937,31.675662218116,31.675662218116,47.6515966309045,52.2653809406823,47.651596630904,47.7872253490297,49.933439266301,62.9740466979489,40.5085000441057,1,1,35.4047876163002,56.5742542741995,70.8128143306926,5.68905239327949,3902.17243167432,0.948632033131601,0.52188552348161,1,OK,"cell 32-40 C outside 15-35 C",2.02595330205111,soaked
+S3_dyncharge_2p5MW,50,50,50.0000000134734,42.9489344044627,42.9489344044627,57.6294472922513,62.2432316020291,57.6294472922513,57.7650760103764,59.8902982204086,69.3898326782393,50.5084999925547,0.000598133862102424,0.00675161622378336,40.0920604004926,47.0633290629065,69.1035668093577,8.19929219634866,3577.1181228984,0.88824669348467,0.521880928492707,1,FAIL,"cell >= BMS L2 hot; charger supply > 55 C; condenser loop > 65 C (check valve)",-4.38983267823926,soaked
+S4_dyncharge_3p0MW,0,0,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0,ERROR,"Simulink will stop the simulation of model '<a href=""matlab:open_system ('proto_loco')"">proto_loco</a>' because the 10 zero crossing signal(s) identified below caused 1000 consecutive zero crossing events in time interval between 120.00000017560096 and 120.00000017709306.
+ 
+Number of consecutive ZCs : 682
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 682
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 67)"">between line: 57, column: 67 and line: 57, column: 77 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,67'
+
+
+Number of consecutive ZCs : 682
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 682
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 67)"">between line: 57, column: 67 and line: 57, column: 77 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,67'
+
+
+Number of consecutive ZCs : 682
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 682
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 67)"">between line: 57, column: 67 and line: 57, column: 77 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,67'
+
+
+Number of consecutive ZCs : 682
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 682
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 67)"">between line: 57, column: 67 and line: 57, column: 77 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,67'
+
+
+Number of consecutive ZCs : 562
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.lcc_proxy'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\lcc_proxy.ssc', 38, 21)"">between line: 38, column: 21 and line: 38, column: 44 in file: D:\Matlab\+protoloco\lcc_proxy.ssc</a>'
+          ZC location tag : 'protoloco.lcc_proxy,38,21'
+
+
+Number of consecutive ZCs : 565
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.thermal'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\thermal.ssc', 113, 20)"">between line: 113, column: 20 and line: 113, column: 39 in file: D:\Matlab\+protoloco\thermal.ssc</a>'
+          ZC location tag : 'protoloco.thermal,113,20'
+
+ ",NaN,soaked
+S4_dyncharge_3p0MW,10,10,17.6992066206494,10,17.4826536776828,18.4378569002421,23.9743980719754,18.4378569002421,18.5734856183672,20.5913656595356,10,10.5085000205764,1,1,48.4457533764077,0,16.5799607875537,4.34029936584198,3932.60464439959,0.949213140493865,0.521888905725505,1,OK,"cell 10-18 C outside 15-35 C",36.5621430997579,soaked
+S4_dyncharge_3p0MW,20,20,25.2895214677078,20,25.1388093673197,27.8832446515641,33.4197858232976,27.8832446515561,28.0188733696893,29.5104376340203,20,20.5084999965065,1,1,39.1981035928764,0,4.88781944439306,3.53512280024164,3921.79971598055,0.949213145315614,0.521884893417169,1,OPTIMAL,"",27.1167553484439,soaked
+S4_dyncharge_3p0MW,40,40,40.0000000155937,32.228745352356,32.228745352356,48.5739960647688,54.1105372365022,48.5739960647568,48.709624782894,50.8558387001652,62.9740466979489,40.5085000650629,1,1,35.4047876163002,56.5742542741995,70.6416887770742,5.67852662298488,3908.17287742511,0.948780078348954,0.52188552348161,1,OK,"cell 32-40 C outside 15-35 C",2.02595330205111,soaked
+S4_dyncharge_3p0MW,50,50,50.0000000139988,43.484945592958,43.484945592958,58.5518451529352,64.0883863246686,58.5518444303082,58.6874738710604,60.8126960810926,69.3898326782393,50.5084999761004,0.000600547050174895,0.00675130333726821,40.0920268154052,47.0632596114267,69.1035632144685,8.06196764409979,3900.94186057207,0.948661060243017,0.521876372160183,1,FAIL,"cell >= BMS L2 hot; charger supply > 55 C; inverter fluid > 60 C; condenser loop > 65 C (check valve)",-4.38983267823926,soaked
+S5_cont_pull_10mph,0,0,2.97480649568479,0,2.97480649568479,5.03761352160063,5.03761352160058,-Inf,6.51647764462092,7.19112229353044,0,20.8922038865596,0,1,18.4934669748356,0,30.5322748015589,126.479292180816,0,0.875877707913827,0,0,FAIL,"cell <= BMS L2 cold",52.8088777064696,soaked
+S5_cont_pull_10mph,10,10,13.2014438631361,10,13.2014438631361,15.0968908874929,15.0968908874929,-Inf,16.6130934594207,17.2503996594227,10,31.709390882127,1,1,1.89916409756668,0,30.5322732407729,670.169745750918,0,0.771479830776208,0,0,DERATED,"speed not held",42.7496003405773,soaked
+S5_cont_pull_10mph,20,20,20.1771443213178,20,20.1771443213178,24.541834209959,24.5418342099589,-Inf,26.0582153031161,26.1690271924151,20,41.7131090568018,1,1,1.37048864712261,0,2.56559722217319,641.99298841118,0,0.776989608910849,0,0,DERATED,"speed not held",33.8309728075849,soaked
+S5_cont_pull_10mph,40,40,40.0000426532001,34.1852448590122,34.1852448590122,45.232730517149,45.232730517149,-Inf,46.749204317941,47.5145731525455,62.9740466979506,61.7148143860969,1,1,1.11245772956408,56.5760354255764,37.2506255915565,678.61277452954,0,0.770030275930975,0,0,DERATED,"speed not held",2.0259533020494,soaked
+S5_cont_pull_10mph,50,50,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0,ERROR,"Simulink will stop the simulation of model '<a href=""matlab:open_system ('proto_loco')"">proto_loco</a>' because the 10 zero crossing signal(s) identified below caused 1000 consecutive zero crossing events in time interval between 314.6443195230375 and 314.64431952698038.
+ 
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 55, 35)"">between line: 55, column: 35 and line: 55, column: 41 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,55,35'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 60, 22)"">between line: 60, column: 22 and line: 60, column: 38 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,60,22'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 55, 35)"">between line: 55, column: 35 and line: 55, column: 41 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,55,35'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 60, 22)"">between line: 60, column: 22 and line: 60, column: 38 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,60,22'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 55, 35)"">between line: 55, column: 35 and line: 55, column: 41 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,55,35'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 60, 22)"">between line: 60, column: 22 and line: 60, column: 38 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,60,22'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 55, 35)"">between line: 55, column: 35 and line: 55, column: 41 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,55,35'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 60, 22)"">between line: 60, column: 22 and line: 60, column: 38 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,60,22'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.lcc_proxy'
+             ZC locations : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\lcc_proxy.ssc', 32, 24)"">between line: 32, column: 24 and line: 32, column: 29 in file: D:\Matlab\+protoloco\lcc_proxy.ssc</a>'
+          ZC location tag : 'protoloco.lcc_proxy,32,24'
+                          : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\lcc_proxy.ssc', 36, 54)"">between line: 36, column: 54 and line: 36, column: 59 in file: D:\Matlab\+protoloco\lcc_proxy.ssc</a>'
+          ZC location tag : 'protoloco.lcc_proxy,36,54'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.vehicle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\vehicle.ssc', 35, 62)"">between line: 35, column: 62 and line: 35, column: 68 in file: D:\Matlab\+protoloco\vehicle.ssc</a>'
+          ZC location tag : 'protoloco.vehicle,35,62'
+
+ ",NaN,soaked
+S6_notch8_15min,0,0,0.878163305788917,0,0.878163305788917,5.02635606486132,5.02635606486132,-Inf,6.50522018788166,7.17972630040197,0,8.75422481253696,0,1,18.4934669748356,0,10.1544969951852,40.2243484460563,0,0.892332205882865,0,1,FAIL,"cell <= BMS L2 cold",52.820273699598,soaked
+S6_notch8_15min,10,10,10.9557532185279,10,10.9557532185279,15.0863522862002,15.0863522862002,-Inf,16.6028462071355,17.2397482365093,10,19.1428916557386,1,1,1.90261792267839,0,10.1544952544418,222.244221973315,0,0.857487451024084,0,1,OK,"cell 10-11 C outside 15-35 C",42.7602517634907,soaked
+S6_notch8_15min,20,20,20.0589675134386,20,20.0589675134386,24.5323777972122,24.5323777972122,-Inf,26.0490435653495,26.1594579266462,20,29.1444357419946,1,1,1.37108480064452,0,0.854486111062083,212.861550542959,0,0.859315762623952,0,1,OPTIMAL,"",33.8405420733538,soaked
+S6_notch8_15min,40,40,40.0000426532001,38.2698626780209,38.2698626780209,45.2218270866296,45.2218270866296,-Inf,46.7386128119991,47.5035094585419,62.9740466853194,49.1456206600965,1,1,1.02818910639082,56.5746236133189,12.3317821704452,225.055193681999,0,0.85701279427366,0,1,OK,"cell 38-40 C outside 15-35 C",2.02595331468063,soaked
+S6_notch8_15min,50,50,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0,ERROR,"Simulink will stop the simulation of model '<a href=""matlab:open_system ('proto_loco')"">proto_loco</a>' because the 10 zero crossing signal(s) identified below caused 1000 consecutive zero crossing events in time interval between 314.71832332761221 and 314.71832333161825.
+ 
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 55, 35)"">between line: 55, column: 35 and line: 55, column: 41 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,55,35'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 60, 22)"">between line: 60, column: 22 and line: 60, column: 38 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,60,22'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 55, 35)"">between line: 55, column: 35 and line: 55, column: 41 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,55,35'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 60, 22)"">between line: 60, column: 22 and line: 60, column: 38 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,60,22'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 55, 35)"">between line: 55, column: 35 and line: 55, column: 41 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,55,35'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 60, 22)"">between line: 60, column: 22 and line: 60, column: 38 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,60,22'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 55, 35)"">between line: 55, column: 35 and line: 55, column: 41 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,55,35'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 60, 22)"">between line: 60, column: 22 and line: 60, column: 38 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,60,22'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.lcc_proxy'
+             ZC locations : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\lcc_proxy.ssc', 32, 24)"">between line: 32, column: 24 and line: 32, column: 29 in file: D:\Matlab\+protoloco\lcc_proxy.ssc</a>'
+          ZC location tag : 'protoloco.lcc_proxy,32,24'
+                          : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\lcc_proxy.ssc', 36, 54)"">between line: 36, column: 54 and line: 36, column: 59 in file: D:\Matlab\+protoloco\lcc_proxy.ssc</a>'
+          ZC location tag : 'protoloco.lcc_proxy,36,54'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.vehicle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\vehicle.ssc', 35, 62)"">between line: 35, column: 62 and line: 35, column: 68 in file: D:\Matlab\+protoloco\vehicle.ssc</a>'
+          ZC location tag : 'protoloco.vehicle,35,62'
+
+ ",NaN,soaked
+S7_switch_shift_8h,0,0,13.6031958876076,0,12.5523036477998,3.6967068125175,3.6967068125175,-Inf,4.82623309479118,5.85021558444737,0,6.99867022497602,0,1,18.4932020920753,0,147.400096438179,884.959019052125,7.26045213788129,0.731820241071365,10.2414802372913,0,FAIL,"cell <= BMS L2 cold",54.1497844155526,soaked
+S7_switch_shift_8h,10,10,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0,ERROR,"Simulink will stop the simulation of model '<a href=""matlab:open_system ('proto_loco')"">proto_loco</a>' because the 4 zero crossing signal(s) identified below caused 1000 consecutive zero crossing events in time interval between 599.99999992374194 and 599.9999999310179.
+ 
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+
+Number of consecutive ZCs : 1000
+               Block path : '<a href=""matlab:open_and_hilite_hyperlink ('proto_loco/Loco','error')"">proto_loco/Loco</a>'
+               Block type : 'protoloco.axle'
+              ZC location : '<a href=""matlab:opentoline('D:\Matlab\+protoloco\axle.ssc', 57, 28)"">between line: 57, column: 28 and line: 57, column: 39 in file: D:\Matlab\+protoloco\axle.ssc</a>'
+          ZC location tag : 'protoloco.axle,57,28'
+
+ ",NaN,soaked
+S7_switch_shift_8h,20,20,20.0690948093351,20,20.068993765016,23.1408784033373,23.1408784033373,-Inf,24.2677736096522,24.7680713857934,20,27.033175892133,1,1,27.7935801954475,0,17.5989305555357,799.109866070542,10.74656834677,0.749049679711117,10.2414805043986,1,OPTIMAL,"",35.2319286142066,soaked
+S7_switch_shift_8h,40,40,40.0000000137454,26.2298665742861,26.5253201265228,43.8233495751666,43.8233495751667,-Inf,44.9365804966112,46.103022244459,62.9740466979496,47.0331757051838,1,1,38.2546576000785,56.5768805086173,128.121674483215,911.609994012908,8.11912691661542,0.726914925067444,10.2414869866037,1,OK,"cell 26-40 C outside 15-35 C",2.02595330205037,soaked
+S7_switch_shift_8h,50,50,50.0000000123791,26.3412915785171,27.8753469814285,53.8094722155284,53.8094722155285,-Inf,54.9363750290593,56.0703231436858,69.3898326782394,57.0331753759558,0.0969736354927197,1,43.324337885241,47.063778875028,201.106155321304,986.46144736363,6.94496013526401,0.712279163193666,10.2414881256314,1,FAIL,"cell >= BMS L2 hot; condenser loop > 65 C (check valve)",-4.38983267823937,soaked
+S8_park_6h,0,0,13.6025788613215,0,13.4298596240676,1.2541436512945,1.25414365129456,-Inf,1.25414365129456,2.04800330041735,0,0,1,1,17.5682866454306,0,143.714846215572,212.213406114668,0,0.558939298511805,0,1,OK,"cell 0-14 C outside 15-35 C",57.9519966995827,soaked
+S8_park_6h,10,10,13.6566460040083,10,13.1485819739563,11.2541436512942,11.2541436512942,-Inf,11.2541436512942,12.048003300417,10,10,1,1,21.9899141584826,0,46.0589853070432,110.488560455698,0,0.578630321897476,0,1,OK,"cell 10-14 C outside 15-35 C",47.951996699583,soaked
+S8_park_6h,20,20,20.0004579420659,20,20.0004579420659,20.6988032890975,20.6988032890975,-Inf,20.6988032890975,20.9663471487466,20,20,1,1,26.6029992180843,0,13.1989305555178,76.2593415588911,0,0.585253223552194,0,1,OPTIMAL,"",39.0336528512534,soaked
+S8_park_6h,40,40,40.0000000004305,26.2285995797971,27.6379607316004,41.3360683856707,41.3360683856707,-Inf,41.3360683856707,42.2075710159014,62.9740466979496,40,1,1,36.7729031937532,56.5742995369145,97.2983550594474,163.862905788003,0,0.568302773707804,0,1,OK,"cell 26-40 C outside 15-35 C",2.02595330205043,soaked
+S8_park_6h,50,50,50.0000000004815,26.3403786979852,26.3405891499111,51.3674053719394,51.3674053719394,-Inf,51.3674053719394,52.2686071772896,69.3898326782395,50,1,1,41.7009655414185,47.0635812062501,183.81497641842,253.984381510225,0,0.550855982030076,0,1,FAIL,"cell >= BMS L2 hot; condenser loop > 65 C (check valve)",-4.38983267823949,soaked
+S1_first_move,0,25,25,24.9028328955754,24.9028328955754,1.8301460405346,1.8301460405346,-Inf,1.95680947789651,3.4328555769564,0,0.0495160305507056,1,1,29.280544754725,0,0.243374999966314,7.4605481309279,0,0.498552824763155,3.21813459389391,1,OPTIMAL,"",56.5671444230436,precond
+S1_first_move,10,25,25,24.9417992837588,24.9417992837588,11.8301459923748,11.8301459923748,-Inf,11.9568091153212,13.4328554931109,10,10.0495160103191,1,1,29.2806489963047,0,0.243374999966312,7.46054807478214,0,0.498552824918804,3.21813341176672,1,OPTIMAL,"",46.5671445068891,precond
+S1_first_move,20,25,25,24.9807656720187,24.9807656720187,21.830146038629,21.8301460386289,-Inf,21.9568091607463,23.432855613692,20,20.0495160217874,1,1,29.2807532387369,0,0.24337499996631,7.46054830750163,0,0.498552825063293,3.21812419772766,1,OPTIMAL,"",36.567144386308,precond
+S1_first_move,40,25,25.058728004461,25,25.058728004461,41.9117209324709,41.9117209324709,-Inf,42.0338538314943,43.6090458255576,40,40.0495160818459,1,1,29.3348218889855,1.07688798504189e-20,0.680760247788971,7.91615794851695,0,0.498464420656068,3.21812045915487,1,OPTIMAL,"",16.3909541744424,precond
+S1_first_move,50,25,25.0977126238429,25,25.0977126238429,51.9551891155402,51.9551891155401,-Inf,52.0776450878244,53.6927924733753,50,50.0495160712123,1,1,29.4019611005176,0,0.940312499657902,8.18652447916271,0,0.498411958740502,3.21810757767937,1,OPTIMAL,"",6.30720752662467,precond
+S2_showcase1,0,25,25,24.6430685738999,24.6430685738999,2.4028186725219,2.4028186725219,-Inf,2.65394901918108,4.03001165497801,0,0.194153723561953,1,1,29.280544754725,0,0.915597222188537,35.3745545491333,0,0.493136579909234,10.3622879603906,1,OPTIMAL,"",55.969988345022,precond
+S2_showcase1,10,25,25,24.7864187932399,24.7864187932399,12.4028186671526,12.4028186671526,-Inf,12.6539490133139,14.0300116496088,10,10.1941537316425,1,1,29.2806489963047,0,0.915597222188534,35.3745557055353,0,0.493136584371999,10.3623070121005,1,OPTIMAL,"",45.9699883503912,precond
+S2_showcase1,20,25,25,24.9297690179212,24.9297690179212,22.4028186652113,22.4028186652113,-Inf,22.6539490114253,24.0300116476674,20,20.1941537350461,1,1,29.2807532387369,0,0.915597222188532,35.3745568959486,0,0.493136591314152,10.3623103621267,1,OPTIMAL,"",35.9699883523326,precond
+S2_showcase1,40,25,25.2166359177668,25,25.2166359177668,42.5183460988918,42.5183460988918,-Inf,42.769469983585,44.2560695085724,40,40.1941537401596,1,1,29.3348218889855,1.97373682301131e-21,2.8722735885354,37.4127571545213,0,0.492740914372941,10.3622798399968,1,OPTIMAL,"",15.7439304914276,precond
+S2_showcase1,50,25,25.3600438131226,25,25.3600438131226,52.5485201089782,52.5485201089782,-Inf,52.7996500104701,54.3138709861712,50,50.1941537139094,1,1,29.4019611005176,0,3.53753472188013,38.1057394322534,0,0.492606385827486,10.3622647535584,1,OPTIMAL,"",5.6861290138288,precond
+S3_dyncharge_2p5MW,0,25,27.6568803290659,24.9671857336566,27.1152703948226,6.96084521768955,11.5746295277974,6.96084521768955,7.0964739358148,8.58803820014572,0,0.508500072099707,1,1,28.0737886478209,0,4.88781944439212,3.54122064341588,3910.21181188312,0.949106479243704,0.521875542439544,1,OPTIMAL,"",48.0391547823104,precond
+S3_dyncharge_2p5MW,10,25,28.0197538926985,24.9807457469032,25.8063861640769,17.3599046957943,21.9729980777981,17.3108901398708,17.4955334139194,19.4447605606732,36.3025422890174,10.5084999992279,1,1,28.0738884895623,60,11.0891051299096,3.54118195453474,3909.98679721244,0.949106440202205,0.521887825099664,1,OPTIMAL,"",28.6974577109826,precond
+S3_dyncharge_2p5MW,20,25,28.0287515322042,24.9938282784053,25.9102305385276,27.4876973123835,32.1014815466074,27.4871862517583,27.6233260305087,29.6150483447266,46.9776537437265,20.5085000123452,1,1,28.0739883302353,60,13.7742550114728,3.54195143030122,3909.84580673295,0.949106474918535,0.521868813594852,1,OPTIMAL,"",18.0223462562735,precond
+S3_dyncharge_2p5MW,40,25,28.0576640465676,25,26.3751841012883,47.6515947265179,52.2653790362958,47.6515936262828,47.7872234446431,49.9334373619144,62.9740466979506,40.5085000115295,1,1,28.1280744488107,56.5770225200999,34.0532064550647,3.85680062719726,3909.44755188207,0.949025660596509,0.521888094115664,1,OK,"PE margin 2.0 K",2.0259533020494,precond
+S3_dyncharge_2p5MW,50,25,28.0982356917781,25,26.4763662833508,57.6294470900334,62.2432313998114,57.6294469667156,57.7650758081587,59.8902980181907,69.3898326782393,50.5085000433219,1,1,28.1952451348571,47.0638205061021,40.8204316804472,4.02793912859321,3909.32863659252,0.949003368831304,0.521868046611243,1,FAIL,"charger supply > 55 C; condenser loop > 65 C (check valve)",-4.38983267823926,precond
+S4_dyncharge_3p0MW,0,25,28.0412879145965,24.9677243832136,25.3502340304519,8.33010589765559,13.8666466248689,8.32883876680017,8.46573461578078,10.3833903123572,25.7757242934895,0.508500042641515,1,1,35.2211884224213,60,12.1328817159637,3.53492829117077,3917.72252792312,0.949213145452596,0.521875542439544,1,OPTIMAL,"",39.2242757065105,precond
+S4_dyncharge_3p0MW,10,25,28.0545737687153,24.9810048415853,25.5813719526602,18.3668373693815,23.9033785369682,18.3667208027161,18.5024660875067,20.4525889389344,36.3025877393385,10.508500077555,1,1,35.1995250137782,60,14.25595548829,3.53527368207732,3917.6261283524,0.949213145573154,0.521887825099664,1,OPTIMAL,"",28.6974122606615,precond
+S4_dyncharge_3p0MW,20,25,28.0697232796868,24.9938806344142,25.8497585333831,28.4109453359589,33.9474865075882,28.4109271434447,28.546574054084,30.5382964188083,46.9776545809443,20.5085000443006,1,1,35.1779701906159,60,16.6963473223814,3.5355122712123,3917.54140862262,0.949213145710183,0.521868813594852,1,OPTIMAL,"",18.0223454190557,precond
+S4_dyncharge_3p0MW,40,25,28.1271254825592,25,26.4371432657819,48.5739941669171,54.1105353386505,48.5739932882415,48.7096228850423,50.8558368023136,62.9740466979497,40.5085000516952,1,1,34.9803481343614,56.5764308770466,36.949912631132,3.84893495959532,3917.10199825723,0.949139613505966,0.521888094115664,1,OK,"PE margin 2.0 K",2.02595330205031,precond
+S4_dyncharge_3p0MW,50,25,28.2374563295596,25,26.5212885305872,58.5518461839148,64.0883873556483,58.551845927743,58.68747490204,60.8126971120721,69.3898326782393,50.5085000529074,1,1,34.9592488043636,47.0649964469428,44.5746718283788,4.02000111067985,3916.94117246457,0.949119089295615,0.521868046611243,1,FAIL,"charger supply > 55 C; inverter fluid > 60 C; condenser loop > 65 C (check valve)",-4.38983267823926,precond
+S5_cont_pull_10mph,0,25,25,24.173871754156,24.173871754156,4.54191120277733,4.54191120277733,-Inf,6.05834090631862,6.16910418523349,0,21.7141020041227,1,1,1.23536390614062,0,2.56559722219061,642.254034732683,0,0.776968582268789,0,0,DERATED,"speed not held",53.8308958147665,precond
+S5_cont_pull_10mph,10,25,25,24.5676645739798,24.5676645739798,14.5419139092336,14.5419139092336,-Inf,16.0583452745171,16.1691068916898,10,31.7141491936164,1,1,1.22618285836633,0,2.56559722219061,642.264786981792,0,0.776967717754764,0,0,DERATED,"speed not held",43.8308931083102,precond
+S5_cont_pull_10mph,20,25,25,24.9614632689556,24.9614632689556,24.5419166020813,24.5419166020813,-Inf,26.0583496200785,26.1691095845374,20,41.7141959632634,1,1,1.22501071353271,0,2.56559722219061,642.275449560634,0,0.776966860467624,0,0,DERATED,"speed not held",33.8308904154626,precond
+S5_cont_pull_10mph,40,25,25.7527586048425,25,25.7527586048425,44.6876744812242,44.6876744812242,-Inf,46.2040956644503,46.4530253584172,40,61.7139749930994,1,1,1.25179680022312,1.02946013745474e-20,9.7685651234882,649.724992154714,0,0.775533713605982,0,0,DERATED,"speed not held",13.5469746415828,precond
+S5_cont_pull_10mph,50,25,26.1466254896945,25,26.1466254896945,54.6876788294126,54.6876788294125,-Inf,56.2041027098543,56.4530297066055,50,71.7140106241093,1,1,1.25081603382313,0,9.91253472210156,649.883073145434,0,0.775504452883173,0,0,DERATED,"speed not held",3.54697029339445,precond
+S6_notch8_15min,0,25,25,24.7181321392558,24.7181321392558,4.53246042785202,4.53246042785202,-Inf,6.0491764980618,6.1595643249658,0,9.14489492868728,1,1,1.22877849189132,0,0.854486111079504,212.953570756152,0,0.859308281309661,0,1,OPTIMAL,"",53.8404356750342,precond
+S6_notch8_15min,10,25,25,24.8519792173435,24.8519792173435,14.5324618843366,14.5324618843367,-Inf,16.0491790330203,16.1595657677308,10,19.1449013365819,1,1,1.2261873181866,0,0.854486111079503,212.954757219991,0,0.85930818433199,0,1,OPTIMAL,"",43.8404342322692,precond
+S6_notch8_15min,20,25,25,24.9858265061016,24.9858265061016,24.5324633364864,24.5324633364864,-Inf,26.0491815599631,26.1595672057284,20,29.1449077261151,1,1,1.22538121149979,0,0.854486111079503,212.955940380353,0,0.859308087626898,0,1,OPTIMAL,"",33.8404327942716,precond
+S6_notch8_15min,40,25,25.2547209238521,25,25.2547209238521,44.6777169576866,44.6777169576866,-Inf,46.1944275540026,46.4429270628732,40,49.1448506284121,1,1,1.2523984008282,1.02946013745474e-20,3.17217386992308,215.358648585552,0,0.858847661902473,0,1,OPTIMAL,"",13.5570729371268,precond
+S6_notch8_15min,50,25,25.388630349646,25,25.388630349646,54.6779470185033,54.6779470185034,-Inf,56.194658380766,56.4432073932936,50,59.1448491663174,1,1,1.25231583535543,0,3.30142361099045,215.493435901646,0,0.858821953841593,0,1,OPTIMAL,"",3.55679260670638,precond
+S7_switch_shift_8h,0,25,25,19.0481632618276,19.0481632618276,3.14087865545474,3.14087865545474,-Inf,4.26777386062219,4.76807163791091,0,7.03317578226745,1,1,30.3355558869741,0,17.5989305555326,799.109596778914,10.7466619706937,0.749055147831885,10.2414803399602,1,OPTIMAL,"",55.2319283620891,precond
+S7_switch_shift_8h,10,25,25,21.4535840295354,21.4535840295354,13.1408786368535,13.1408786368535,-Inf,14.2677736978017,14.7680716193096,10,17.0331761285025,1,1,30.3356639753351,0,17.5989305555326,799.109770044178,10.7466806613717,0.749058390021681,10.2414785910363,1,OPTIMAL,"",45.2319283806904,precond
+S7_switch_shift_8h,20,25,25,23.8591056688089,23.8591056688089,23.1408785765856,23.1408785765856,-Inf,24.267772967279,24.7680715590418,20,27.0331741143078,1,1,30.3357720618544,0,17.5989305555326,799.109619734899,10.7466504735374,0.749062135827515,10.2414843042541,1,OPTIMAL,"",35.2319284409582,precond
+S7_switch_shift_8h,40,25,28.0016353614662,25,26.7257317610616,43.7302495097923,43.7302495097923,-Inf,44.5240886167434,46.0082247266635,62.9740466553703,47.033174633559,1,1,30.3898269296562,56.5697781098078,64.8373751571151,846.870322753303,9.3004672897102,0.739599870898058,10.2414805230858,1,OK,"PE margin 2.0 K",2.02595334462973,precond
+S7_switch_shift_8h,50,25,28.0051303986967,25,27.0718096667617,53.8076832205533,53.8076832205533,-Inf,54.9362971727899,56.0685341487106,69.3898326782397,57.0331756638319,1,1,30.456940900331,47.0616210370534,90.0286221026807,872.830861416071,9.01989293259071,0.734550178514978,10.2414745621429,1,FAIL,"condenser loop > 65 C (check valve)",-4.38983267823971,precond
+S8_park_6h,0,25,25,20.3344504770878,20.3344504770878,0.698803289097782,0.698803289097782,-Inf,0.698803289097782,0.966347148746877,0,0,1,1,29.0730411135302,0,13.1989305555162,76.2593424075776,0,0.585253272062811,0,1,OPTIMAL,"",59.0336528512531,precond
+S8_park_6h,10,25,25,22.200833530742,22.200833530742,10.6988032890979,10.698803289098,-Inf,10.698803289098,10.966347148747,10,10,1,1,29.0731461425389,0,13.1989305555162,76.2593424469707,0,0.585253289704215,0,1,OPTIMAL,"",49.033652851253,precond
+S8_park_6h,20,25,25,24.0672170680535,24.0672170680535,20.6988032890974,20.6988032890974,-Inf,20.6988032890974,20.9663471487465,20,20,1,1,29.0732511718822,0,13.1989305555162,76.2593424685895,0,0.585253306546965,0,1,OPTIMAL,"",39.0336528512535,precond
+S8_park_6h,40,25,27.8002436146132,25,27.8002436146132,40.7796406471924,40.7796406471924,-Inf,40.7796406471924,41.1237969428192,40,40,1,1,29.1268672517848,3.66188750213781e-23,34.1237955191127,98.0560752773853,0,0.581036909725253,0,1,OPTIMAL,"",18.8762030571808,precond
+S8_park_6h,50,25,28.0046878501025,25,27.6229489368528,51.3673798949484,51.3673798949484,-Inf,51.3673798949484,52.2685817002987,69.3898326782396,50,1,1,29.1936522049567,47.0653866491748,61.9807397488893,127.07372352003,0,0.575422459822247,0,1,FAIL,"condenser loop > 65 C (check valve)",-4.3898326782396,precond
