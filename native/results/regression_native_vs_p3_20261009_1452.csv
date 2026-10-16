@@ -1,0 +1,2 @@
+scenario,ic,T_amb,verdict_p3,verdict_nat,dTcell_max,dTsup_max,dTcond_max,dsoc_end,dv_rms_mph,dib_rms_A,wall_p3,wall_nat,pass
+S1_first_move,soaked,25,OPTIMAL,OPTIMAL,1.6009320233934e-06,-2.66217088551457e-05,0,-3.88463701539443e-07,0.0164534065002555,16.8522112287912,3.4352626,221.9213933,1

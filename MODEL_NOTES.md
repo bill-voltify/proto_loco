@@ -254,3 +254,61 @@ Team-facing model in the style of the MathWorks EV examples. See `loco_system/RE
 - **Automatic states:** `load_trace` evaluated blank states only at breakpoints, so a trace with breakpoints at 0 s and 6 h (S8) stayed in SLEEP (HV and TMS off) for the whole run. Blank states are now evaluated on a 1 s grid.
 - **SPAL 12 V radiator fans** (6 × 150 W nominal, POC B12-01/02) added to `load_budget.csv` (STANDBY to FAULT). The LV radiators' heat rejection is not modeled (RSK-NEW-35).
 - **LRU faults:** fault-library rows that share a `fault_id` are applied together (`run_fault_sweep` groups them). New: BTMS_24V_PS_TRIP (all pumps), BTMS_12V_PS_TRIP (chillers off).
+
+## Native Simscape model: thermal approach decision (Oct 9, 2026)
+
+Branch `native-simscape`, model `loco_native`, library `native/lib/loco_native_lib.slx`.
+
+**Decision: Option A (parity first).**
+- Thermal Plant receives heat inputs as signals (`Qb`, `i_a`, `p_chg`, `p_aux`), the same as Phase 3 `thermal.ssc`.
+- Five thermal masses (cells, battery coolant, condenser loop, PE loop, D77 motor) use Foundation thermal blocks.
+- TMS control logic (chiller/heater hysteresis, chiller command, fans, BMS derates, Ptms) moves to a sampled
+  Simulink "TMS Controller" at 10 Hz with a one-sample Unit Delay (native convention NAT-13).
+
+**Deferred: Option B (native thermal coupling), as a variant after the Step 8 regression passes.**
+- Battery Table-Based blocks: enable thermal ports so I^2R heat flows physically into the cell thermal mass.
+- Chopper conduction/switching loss and D77 armature resistor heat delivered through thermal ports.
+- Effects: temperature-dependent resistance becomes physical; per-motor heating becomes visible
+  (Phase 3 uses axle 1 current for all four motors).
+
+**Parameter source:** native uses `P.th`, which differs from `thermal.ssc` defaults:
+Q_mtm 12.0 vs 12.5 kW, k_cop 0.10 vs 0.05, COP_min 1.5 vs 1.2, Q_heat_max 12 vs 24 kW, P_pump 2.77 vs 1.5 kW.
+`f_ram = 0.2` (ram-air fraction) is hard-coded in `thermal.ssc` and not in `P`.
+
+**Native status:** Steps 1-6 pass against Phase 3 (strings, TRB, DC-Link, axle, vehicle, LCC, AUX, charger).
+Open items and bench log: `native/OPEN_ITEMS.md`.
+
+## Native Simscape model: Step 8 complete, full plant in Phase 3 harness (Oct 9, 2026)
+
+**How to run**
+- Model: `native/loco_native.slx` (copy of Phase 3 harness; Plant is a Variant Subsystem).
+- `PLANT_ID = 1` Phase 3 plant, `PLANT_ID = 2` native plant (`loco_native_lib/Native Plant`).
+- `RUN = run_loco_native(trace, 'Plant', 'native'|'phase3', <run_loco_system options>)`
+  returns the same `report_loco_run` metrics/verdict as `run_loco_system`.
+- `T = run_regression_native([scenarios], [ambients], {ic}, stop_s)`; no arguments lists scenarios.
+- Rebuild after library changes: `build_loco_native` (re-applies fast-solver overrides).
+
+**Solver decision (system runs).** Native plant uses local Backward-Euler solvers (electrical 1 ms,
+thermal 0.1 s) with global `ode14x` fixed 1 ms. Variable-step daessc failed one step per 1 kHz
+chopper-firmware sample (21,049 failed steps / 20 s) and ran 9-13x slower than real time.
+Fixed-step runs at 0.45-0.95x real time. Accuracy vs variable-step: speed 0.000 mph, i_a 0.02 A,
+pack current 3.3 A max / 0.12 A rms, V_link 14 V max (precharge transient). Component benches
+in `native/tests/` keep variable-step.
+
+**Regression (native vs Phase 3, same harness): 7 / 7 pass.**
+S1 first move 25 C; S2 showcase 25/40 C; S6 notch 8 25/40 C (DERATED matched);
+S3 dyn charge 2.5 MW 40 C and S5 continuous pull 40 C (first 3000 s).
+Max differences: Tcell 0.001 K, Tsup 0.0013 K, SOC_end 0.0001, speed rms 0.016 mph;
+pack current rms 6-17 A (transition events). Not run: S7 (8 h), S8 (6 h).
+
+**Finding (NAT-41):** the Phase 3 plant hits solver min-step violations at every traction
+start/stop/brake transition (6-73 per run; effective tolerance up to 2e4 x requested).
+Native runs show none. Phase 3 verdicts, temperatures and SOC are unaffected; instantaneous
+currents near transitions are not reliable in Phase 3.
+
+**Known native differences by design:** string dropout opens string 6 first with frozen SOC
+(NAT-39); vehicle mass fixed per run from trace trailing tons (NAT-22/40); controllers sampled
+(LCC 100 Hz, charger 100 Hz, TMS 10 Hz, chopper FW 1 kHz system / 10 kHz bench) with one-sample
+delay (NAT-13); battery heat and cell temperature coupled through thermal ports (NAT-31 partial B).
+
+Full open-items list and bench log: `native/OPEN_ITEMS.md`.

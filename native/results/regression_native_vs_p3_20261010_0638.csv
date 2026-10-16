@@ -1,0 +1,2 @@
+scenario,ic,T_amb,verdict_p3,verdict_nat,dTcell_max,dTsup_max,dTcond_max,dsoc_end,dv_rms_mph,dib_rms_A,p3_solver_warn,nat_solver_warn,wall_p3,wall_nat,pass
+S8_park_6h,soaked,40,OK,OK,1.06775354424826e-06,-3.88808985007927e-11,-1.88151716429275e-11,7.35466044732291e-07,0,2.30390947126899,3,0,4.161734,12471.6649671,1

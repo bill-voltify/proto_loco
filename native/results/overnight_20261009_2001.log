@@ -1,0 +1,28 @@
+
+== Overnight native vs Phase 3 started 09-Oct-2026 20:01:13 ==
+
+[1/4] S4_dyncharge_3p0MW at 40 C  (start 20:01)
+S4_dyncharge_3p0MW    40 C soaked  phase3 ... 3 s (21 solver warn) | native ... 4583 s (0 solver warn) | OK vs OK  dTcell 0.00  dSOC -0.0000  dv_rms 0.000  dib_rms 4.1  pass=1
+
+Native vs Phase 3: 1 / 1 pass
+Saved D:\Matlab\native\results\regression_native_vs_p3_20261009_2117.csv
+
+[2/4] S7_switch_shift_8h at 25 C  (start 21:17)
+S7_switch_shift_8h    25 C soaked  phase3 ... 33 s (994 solver warn) | native ... 21133 s (0 solver warn) | OPTIMAL vs OPTIMAL  dTcell 0.00  dSOC -0.0000  dv_rms 0.001  dib_rms 2.0  pass=1
+
+Native vs Phase 3: 1 / 1 pass
+Saved D:\Matlab\native\results\regression_native_vs_p3_20261010_0310.csv
+
+[3/4] S8_park_6h at 40 C  (start 03:10)
+S8_park_6h            40 C soaked  phase3 ... 4 s (3 solver warn) | native ... 12472 s (0 solver warn) | OK vs OK  dTcell 0.00  dSOC 0.0000  dv_rms 0.000  dib_rms 2.3  pass=1
+
+Native vs Phase 3: 1 / 1 pass
+Saved D:\Matlab\native\results\regression_native_vs_p3_20261010_0638.csv
+
+[4/4] S3_dyncharge_2p5MW at 40 C  (start 06:38)
+S3_dyncharge_2p5MW    40 C soaked  phase3 ... 4 s (18 solver warn) | native ... 4622 s (0 solver warn) | OK vs OK  dTcell 0.00  dSOC -0.0000  dv_rms 0.000  dib_rms 4.0  pass=1
+
+Native vs Phase 3: 1 / 1 pass
+Saved D:\Matlab\native\results\regression_native_vs_p3_20261010_0755.csv
+
+== Overnight finished 10-Oct-2026 07:55:56 ==
