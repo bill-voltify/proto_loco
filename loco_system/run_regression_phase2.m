@@ -13,8 +13,22 @@ S = proto_scenarios();
 if nargin >= 3 && ~isempty(scn_pick), S = S(scn_pick); end
 d = dir(fullfile(root, 'results', 'thermal_sweep_*.csv'));
 assert(~isempty(d), 'No Phase 2 results in %s', fullfile(root, 'results'));
-[~, i] = max([d.datenum]);
-ref = readtable(fullfile(d(i).folder, d(i).name), 'TextType', 'string');
+[~, ord] = sort({d.name});
+ord = fliplr(ord);
+ref = [];
+for k = ord
+    try
+        R = readtable(fullfile(d(k).folder, d(k).name), 'TextType', 'string');
+    catch
+        continue
+    end
+    if all(ismember({'scenario', 'T_amb', 'ic', 'verdict'}, R.Properties.VariableNames)) && height(R) >= 80
+        ref = R;
+        fprintf('Phase 2 reference: %s (%d rows)\n', d(k).name, height(R));
+        break
+    end
+end
+assert(~isempty(ref), 'No complete Phase 2 sweep (>= 80 rows) in %s', fullfile(root, 'results'));
 build_loco_system();
 rows = [];
 for ic = 1:numel(ic_list)
@@ -28,6 +42,7 @@ for ic = 1:numel(ic_list)
                     'soc0', S(s).soc0, 'I_chg_bms', S(s).I_chg_bms, 'MaxStep', S(s).max_step, 'Plot', false, 'Silent', true, 'Baseline', 'phase2');
                 M = RUN.metrics;
                 r = ref(ref.scenario == S(s).name & ref.T_amb == Ta & ref.ic == ic_list{ic}, :);
+                assert(~isempty(r), 'No Phase 2 reference row for %s, %d C, %s', S(s).name, Ta, ic_list{ic});
                 row = struct('scenario', string(S(s).name), 'ic', string(ic_list{ic}), 'T_amb', Ta, ...
                     'verdict_p3', M.verdict, 'verdict_p2', r.verdict(1), ...
                     'dTcell_max', M.Tcell_max - r.Tcell_max(1), 'dTsup_max', M.Tsup_max - r.Tsup_max(1), ...
