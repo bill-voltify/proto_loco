@@ -312,3 +312,22 @@ currents near transitions are not reliable in Phase 3.
 delay (NAT-13); battery heat and cell temperature coupled through thermal ports (NAT-31 partial B).
 
 Full open-items list and bench log: `native/OPEN_ITEMS.md`.
+
+---
+
+## Rev D baseline (2026-10-21)
+
+`P.sys.model_rev = 'RevD'` (set in `loco_system_params.m` for both baselines).
+
+| Item | Change |
+|---|---|
+| PE loop (`poc`) | Restored `P.th.mcp_chop = 1180` and `P.th.mcp_inv = 1100` W/K (Vince KULI review 2026-10-09, commit 3f97c2d). Commit b2e57d9 (Oct 10) dropped them, so Rev C runs, including the CSX4091 0823 decomposition, used the Oct 5 values 1430 / 950. |
+| `phase2` | Unchanged (frozen). |
+| Drivetrain | Unchanged from Rev C: 42 in wheel, Integral-sim chopper loss, 536 kW per-motor cap, D77-chart Kphi, regen off. |
+| Revision tag | `P.sys.model_rev`, `P.sys.model_rev_date`. Read by `ops_export/export_ops_baseline.m`. |
+
+**Expected effect:** chopper coolant outlet about +0.85 K, inverter outlet about -0.1 K (Oct 10 fault-sweep comparison). No verdict changes expected. Energy and SOC unaffected (thermal only).
+
+**Re-run after this change:** `native/tests/verify_pe_update` (should print PASS), `run_csx4091_baseline` (yard), and `run_fault_sweep` if the dashboard heatmaps are refreshed.
+
+**Still open (parameter table above is pre-Rev C):** Rev C drivetrain values are documented in `loco_system_params.m` comments, not yet in this file's parameter tables (G-11).

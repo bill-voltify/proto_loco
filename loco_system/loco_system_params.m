@@ -11,6 +11,7 @@ function P = loco_system_params(opts)
 %   chop_loss_scale: multiplier on integral_sim losses (default 1; 2 if Integral confirms per-module basis)
 %   motor_cap_kW:    per-motor power cap, kW (default 536 = D77 FRA rating; 373 = 500 hp prototype limit)
 %   motor_flux:      'd77_chart' (default, fit to reference/D77-D78.pdf speed lines) | 'legacy' (9.0*(1-exp(-I/600)))
+%   Model revision: P.sys.model_rev. Rev D (2026-10-21) = Rev C drivetrain + restored KULI 2026-10-09 PE loop values.
 here = fileparts(mfilename('fullpath'));
 addpath(fileparts(here));
 if nargin < 1, opts = struct(); end
@@ -26,6 +27,8 @@ if isempty(regen), regen = ~strcmpi(baseline, 'poc'); end
 [motor_flux, opts] = take(opts, 'motor_flux', 'd77_chart');
 P = proto_loco_params(opts);
 P.sys.baseline = baseline;
+P.sys.model_rev = 'RevD';
+P.sys.model_rev_date = '2026-10-21';
 % Motor flux as a lookup table (axle.ssc Rev C). Legacy curve reproduces the Phase 2 analytic Kphi.
 P.ax.I_kphi = 0:10:2000;
 P.ax.Kphi_tab = P.ax.Kphi_sat*(1 - exp(-max(P.ax.I_kphi, P.ax.If_min)/P.ax.I0));
@@ -38,6 +41,12 @@ if strcmpi(baseline, 'poc')
     P.th.P_pump = 2.58e3/0.93; % 6 SPAL pumps 350 W + 8 MTM internal pumps 60 W, via DCC65M24 (93%)
     % Radiator fans: EMP per KULI reviews (7 kW per 3-fan bank) kept by decision 2026-10-08;
     % POC Power Budget lists SPAL VA117 12 V fans (RSK-NEW-35).
+    % PE loop per Vince KULI review 2026-10-09 (3 pumps x 4500 rpm, 223 L/min, 40 C), decided 2026-10-09.
+    % Rev D (2026-10-21): restored; these two lines were dropped by commit b2e57d9 (Oct 10).
+    P.th.mcp_chop = 1180;      % 19.7 L/min per chopper, 3.4 K rise at 4.02 kW (was 1430)
+    P.th.mcp_inv = 1100;       % front inverter 18.1 L/min, 3.1 K rise at 3.41 kW (was 950)
+    % Held pending suppliers: chopper loss basis per chopper vs per module (NAT-43, G-06),
+    % P_pump vs KULI 1.15 kW (NAT-45), per-device inverter/aux heat split (NAT-46).
 
     % Rev C drivetrain (2026-10-15)
     % Wheel: 42 in per Jonathan (D77/D78 curves review); D77 chart basis is 62:15 / 40 in.
