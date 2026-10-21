@@ -31,7 +31,7 @@ try, set_param([s '/S2PS_K'],'Unit','1'); catch, end
 try, set_param([s '/PS2S_I'],'Unit','A'); catch, end
 
 try
-    set_param([s '/Contactor'],'R_closed','0.1e-3','G_open','1e-9','Threshold','0.5');
+    set_param([s '/Contactor'],'R_closed','PN.str.R_ext','G_open','1e-9','Threshold','0.5');   % Rev E (was 0.1e-3)
 catch e
     fprintf('Could not set Contactor params: %s\nDialog parameters are:\n',e.message);
     dp = fieldnames(get_param([s '/Contactor'],'DialogParameters'));

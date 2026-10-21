@@ -11,7 +11,13 @@ function P = loco_system_params(opts)
 %   chop_loss_scale: multiplier on integral_sim losses (default 1; 2 if Integral confirms per-module basis)
 %   motor_cap_kW:    per-motor power cap, kW (default 536 = D77 FRA rating; 373 = 500 hp prototype limit)
 %   motor_flux:      'd77_chart' (default, fit to reference/D77-D78.pdf speed lines) | 'legacy' (9.0*(1-exp(-I/600)))
+%   Rev E option ('poc' only; 'phase2' stays frozen):
+%   r_string:        per-string resistance outside the cells. 'vms' (default, 10.63 mOhm -> 90.5 mOhm per string at 25 C,
+%                    the VMS Power_Sequencing 4.8 value) | 'cells' (0, Rev D) | 'bench' (123.42 mOhm -> 177.5 mOhm ohmic,
+%                    CO-2 bench close 2026-10-15, VB-11; upper-bound sensitivity until Mitchell confirms the basis)
 %   Model revision: P.sys.model_rev. Rev D (2026-10-21) = Rev C drivetrain + restored KULI 2026-10-09 PE loop values.
+%   Rev E (2026-10-21) = Rev D + string resistance outside the cells, 7 SPAL pumps, heater coolant pump, budget rows
+%   L19b/L21 (load_budget.csv), VMS_LOSS fault (faults/fault_library.csv, run_vms_loss.m). See MODEL_NOTES.md Rev E.
 here = fileparts(mfilename('fullpath'));
 addpath(fileparts(here));
 if nargin < 1, opts = struct(); end
@@ -25,9 +31,13 @@ if isempty(regen), regen = ~strcmpi(baseline, 'poc'); end
 [chop_scale, opts] = take(opts, 'chop_loss_scale', 1);
 [motor_cap_kW, opts] = take(opts, 'motor_cap_kW', 536);
 [motor_flux, opts] = take(opts, 'motor_flux', 'd77_chart');
+[r_string, opts] = take(opts, 'r_string', 'vms');
 P = proto_loco_params(opts);
+% Rev E fields, defined for both baselines ('phase2' keeps 0 = Rev D behaviour)
+P.batt.R_ext_str = 0;      % Ohm per string outside the cells (contactors, fuse, shunt, cabling); heat to ambient, not to Qb
+P.th.P_hpump = 0;          % W, PTC heater coolant pump while the heater runs (mh)
 P.sys.baseline = baseline;
-P.sys.model_rev = 'RevD';
+P.sys.model_rev = 'RevE';
 P.sys.model_rev_date = '2026-10-21';
 % Motor flux as a lookup table (axle.ssc Rev C). Legacy curve reproduces the Phase 2 analytic Kphi.
 P.ax.I_kphi = 0:10:2000;
@@ -47,6 +57,28 @@ if strcmpi(baseline, 'poc')
     P.th.mcp_inv = 1100;       % front inverter 18.1 L/min, 3.1 K rise at 3.41 kW (was 950)
     % Held pending suppliers: chopper loss basis per chopper vs per module (NAT-43, G-06),
     % P_pump vs KULI 1.15 kW (NAT-45), per-device inverter/aux heat split (NAT-46).
+
+    % Rev E (2026-10-21), from VMS Locomotive_Equipment_List (Mitchell 2026-10-20, VB-22/VB-27):
+    % Pumps: 4 BTMS + 3 PE SPAL (350 W each, POC Power Budget nominal; bench 220 W at 80 %, VB-14) + 8 MTM internal 60 W,
+    %   via DCC65M24 (93 %): 2.93 kW / 0.93 = 3.15 kW (was 6 SPAL, 2.77 kW).
+    P.th.P_pump = (7*350 + 8*60)/0.93;
+    % Heater coolant pump: Bosch PCE 0392024041, 24 V, on/off by PDM R7 while the heater runs. Rating not in the VMS
+    %   sources: 50 W placeholder.
+    P.th.P_hpump = 50;
+    % String resistance: 12 strings (Bill 2026-10-21: 48 modules, 4 in series per string, 6 positions of 4s2p).
+    %   Cells at 25 C: R0 54.08 + R1 25.79 = 79.87 mOhm per string. Bench CO-2 (VB-11): 176-179 mOhm ohmic (basis
+    %   unconfirmed: bench cabling, 37 A, cell temperature, BCU offset). Interim (Bill 2026-10-21): match the VMS per-string
+    %   value, 90.5 mOhm at 25 C, as resistance outside the cells.
+    switch lower(r_string)
+        case 'vms'
+            P.batt.R_ext_str = 90.5e-3 - P.batt.Ns*(P.batt.R0_cell + P.batt.R1_cell);
+        case 'cells'
+            P.batt.R_ext_str = 0;
+        case 'bench'
+            P.batt.R_ext_str = 177.5e-3 - P.batt.Ns*P.batt.R0_cell;
+        otherwise
+            error('r_string must be ''vms'', ''cells'' or ''bench''');
+    end
 
     % Rev C drivetrain (2026-10-15)
     % Wheel: 42 in per Jonathan (D77/D78 curves review); D77 chart basis is 62:15 / 40 in.
@@ -97,6 +129,7 @@ if strcmpi(baseline, 'poc')
     P.sys.demo_chg_P_max_W = 2.1e6;
     P.sys.demo_chg_I_wire_max_A = 1666;
     P.sys.drivetrain_rev = sprintf('RevC wheel=%gin chop=%s x%g cap=%gkW flux=%s', wheel_in, chop_loss, chop_scale, motor_cap_kW, motor_flux);
+    P.sys.string_rev = sprintf('RevE r_string=%s R_ext=%.2f mOhm/string', r_string, 1e3*P.batt.R_ext_str);
 end
 % Regen gate (2026-10-15): the LCC proxy's regen limit is P_reg = I_chg_max*Vbat/eta_drv, and
 % I_chg_max is used nowhere else in the Phase 3 plant (charging uses P.chg.I_hw / P.chg.I_bms).
@@ -114,6 +147,7 @@ P.sys.states = {'SLEEP','STANDBY','READY','TRACTION','CHARGING','FAULT','ESTOP'}
 P.sys.buses = {'750V','72V','24V_Ctrl','24V_BTMS','12V_BTMS'};
 P.sys.fault_channels = {'n_mtm','fan_pe','fan_cd','pump_pe','pump_bat','n_ax_on','n_str','dT_sense_K', ...
                         'blower_ok','comms_ok','aux_ok','chg_derate','estop','classA'};
+% n_str = strings online (12 strings of 416S, Bill 2026-10-21; closes NAT-14).
 P.sys.fault_nominal = [4 1 1 1 1 4 12 0 1 1 1 1 0 0];
 P.sys.max_step = 1;
 end

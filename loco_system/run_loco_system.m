@@ -22,6 +22,7 @@ function RUN = run_loco_system(trace, varargin)
 %   ChopLossScale   multiplier on integral_sim chopper loss (1)   [Rev C, 'poc' only]
 %   MotorCapkW      per-motor power cap, kW (536; 373 = 500 hp)   [Rev C, 'poc' only]
 %   MotorFlux       'd77_chart' (default) | 'legacy'               [Rev C, 'poc' only]
+%   RString         'vms' (default, 90.5 mOhm/string) | 'cells' | 'bench' (177.5 mOhm)  [Rev E, 'poc' only]
 %   ShowWarnings    true = print solver warnings in full (false = one-line summary; text kept in RUN.sim_log)
 here = fileparts(mfilename('fullpath'));
 addpath(here); addpath(fileparts(here));
@@ -46,6 +47,7 @@ p.addParameter('ChopLoss', 'integral_sim');
 p.addParameter('ChopLossScale', 1);
 p.addParameter('MotorCapkW', 536);
 p.addParameter('MotorFlux', 'd77_chart');
+p.addParameter('RString', 'vms');
 p.addParameter('ShowWarnings', false);
 p.parse(varargin{:});
 o = p.Results;
@@ -66,7 +68,7 @@ end
 P = loco_system_params(struct('T_amb_C', TR.ambient0_C, 'T0_C', o.T0_C, 'soc0', o.soc0, ...
     'I_chg_bms', o.I_chg_bms, 'bms', o.bms, 'baseline', o.Baseline, 'regen', o.Regen, ...
     'wheel_in', o.WheelIn, 'chop_loss', o.ChopLoss, 'chop_loss_scale', o.ChopLossScale, 'motor_cap_kW', o.MotorCapkW, ...
-    'motor_flux', o.MotorFlux));
+    'motor_flux', o.MotorFlux, 'r_string', o.RString));
 if o.UseBudget, TR.SCN(:, 7) = -1; end
 FLT = build_fault_matrix(F, TR.t_end, P);
 B = load_budget_table(o.Budget);

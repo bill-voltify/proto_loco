@@ -20,3 +20,10 @@ CLASS_A_GENERIC,F46,Any other Class A fault (traction and charging blocked),clas
 BTMS_24V_PS_TRIP,F61,BTMS 24 V supply (DCC65M24) trip: all SPAL pumps stop (PE loop),pump_pe,0.05,0,1e9,0
 BTMS_24V_PS_TRIP,F61,BTMS 24 V supply (DCC65M24) trip: all SPAL pumps stop (battery loop),pump_bat,0,0,1e9,0
 BTMS_12V_PS_TRIP,F55,BTMS 12 V supply (NetPower) trip: MTM ECUs and internal pumps off (chillers lost; LV fans not modeled),n_mtm,0,0,1e9,0
+VMS_LOSS,TBD (G-33),VMS crash: Zekalabs converters stop after 1.5 s CAN silence; 750 V bus lost (VB-28): 750 V aux lost: ACH inverters and budget loads shed,aux_ok,0,0,1e9,0
+VMS_LOSS,TBD (G-33),VMS crash: Zekalabs converters stop after 1.5 s CAN silence; 750 V bus lost (VB-28): LCC drops traction after 200 ms; no charging,comms_ok,0,0,1e9,0
+VMS_LOSS,TBD (G-33),VMS crash: Zekalabs converters stop after 1.5 s CAN silence; 750 V bus lost (VB-28): SPAL pumps off (BTMS 24V PS on 750 V): PE loop,pump_pe,0.05,0,1e9,0
+VMS_LOSS,TBD (G-33),VMS crash: Zekalabs converters stop after 1.5 s CAN silence; 750 V bus lost (VB-28): SPAL pumps off: battery loop,pump_bat,0,0,1e9,0
+VMS_LOSS,TBD (G-33),VMS crash: Zekalabs converters stop after 1.5 s CAN silence; 750 V bus lost (VB-28): EMP fans off (750 V): PE radiator,fan_pe,0,0,1e9,0
+VMS_LOSS,TBD (G-33),VMS crash: Zekalabs converters stop after 1.5 s CAN silence; 750 V bus lost (VB-28): EMP fans off (750 V): condenser radiator,fan_cd,0,0,1e9,0
+VMS_LOSS,TBD (G-33),VMS crash: Zekalabs converters stop after 1.5 s CAN silence; 750 V bus lost (VB-28): MTMs off (BTMS 12V PS on 750 V),n_mtm,0,0,1e9,0

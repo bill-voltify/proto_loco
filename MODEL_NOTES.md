@@ -331,3 +331,45 @@ Full open-items list and bench log: `native/OPEN_ITEMS.md`.
 **Re-run after this change:** `native/tests/verify_pe_update` (should print PASS), `run_csx4091_baseline` (yard), and `run_fault_sweep` if the dashboard heatmaps are refreshed.
 
 **Still open (parameter table above is pre-Rev C):** Rev C drivetrain values are documented in `loco_system_params.m` comments, not yet in this file's parameter tables (G-11).
+
+## Rev E baseline (2026-10-21)
+
+`P.sys.model_rev = 'RevE'`. Source: VMS bench findings VB-11, VB-14, VB-22, VB-27, VB-28 (claude.ai project `claude/vms-bench-findings.md`) and the deltas draft `claude/model-revE-deltas.md`. `phase2` stays frozen: new fields default to 0, and the fault-free Phase 2 numerics are unchanged (Python reference: bit-identical on S1, S2, S3, S6, S8).
+
+| # | Item | Change |
+|---|---|---|
+| E1 | Topology | No change. 12 strings of 416S (Bill 2026-10-21: 48 modules, 4 in series per string; 6 positions of 4s2p). `n_str` counts strings (NAT-14 closed). Architecture doc / GP40-V deck "6 strings" to correct (G-01). |
+| E2 | String resistance | New `P.batt.R_ext_str` (Ω per string, outside the cells; heat to ambient, not to `Qb`). Option `r_string`: `vms` (default) 10.63 mΩ → 90.5 mΩ per string at 25 °C, the VMS value; `cells` 0 (Rev D); `bench` 123.42 mΩ → 177.5 mΩ ohmic (CO-2, VB-11, sensitivity only, NAT-47). Interim until Mitchell confirms the bench basis. |
+| E3 | Pumps | `P.th.P_pump` = (7 × 350 + 8 × 60)/0.93 = 3.15 kW (4 BTMS + 3 PE SPAL; was 6 SPAL, 2.77 kW). |
+| E4 | Fans (budget) | `load_budget.csv` L21 = EMP fan LV supply + ignition-enable, 0.072 kW on 24V_BTMS (was SPAL VA117 12 V fans, 0.9 kW: double count with the plant EMP fans). |
+| E5 | Third ACH | L19b second compressor, peak 5.1 kW, nominal 0 (shared duty placeholder; G-14/G-26). |
+| E6 | Heater pump | `P.th.P_hpump` = 50 W while the heater runs (`mh`), placeholder (NAT-48). |
+| E7 | VMS loss | Fault `VMS_LOSS` (7 rows, one event) in `faults/fault_library.csv`; runner `loco_system/run_vms_loss.m` (Python `reference/run_vms_loss.py`). |
+| Fix | Aux shedding | `aux_ok = 0` now also sheds a trace `aux_override_kW` (Power Budget block). Before, AUX_DCDC_TRIP on override traces kept the 30–72 kW aux load flowing. Changes AUX_DCDC_TRIP fault-sweep results; fault-free and `phase2` runs unaffected. |
+
+**Files:** `loco_system_params.m` (Rev E block, `r_string`), `run_loco_system.m` (`RString`), `load_budget.csv`, `faults/fault_library.csv`, `run_vms_loss.m`, `+locosys/battery.ssc` (`R_ext_str`, `Qh` excludes it), `+locosys/thermal.ssc` (`P_hpump`), `+locosys/locomotive_sys.ssc` (pass-through), `build_loco_system.m` (param map, budget shedding), `native/native_params.m` (`PN.str.R_ext`), `native/fix_revE_native.m` (contactor R and TMS chart), `native/build_lib_string.m` / `build_lib_tms.m` (same, for a rebuild from scratch), `native/OPEN_ITEMS.md`, `reference/*.py`. `+protoloco` (Phase 1/2) and `proto_loco_params.m` are unchanged.
+
+**Rebuild and re-run (MATLAB):**
+```matlab
+build_loco_system;                               % picks up the .ssc and budget changes
+run_regression_phase2                            % must still PASS (phase2 frozen)
+fix_revE_native; build_loco_native;              % native library + model
+run('native/tests/run_regression_native.m')      % native vs Phase 3
+run_csx4091_baseline                             % yard baseline, Rev E
+T = run_vms_loss();                              % E7
+T = run_fault_sweep();                           % if the dashboard heatmaps are refreshed (VMS_LOSS now in the library)
+```
+
+**Expected effect (Python reference, Rev E vs `r_string = 'cells'`):**
+
+| Case | Change |
+|---|---|
+| Pack series resistance at 25 °C | 7.66 → 8.54 mΩ (steady state incl. R1). String hardware dissipates 3.1 kW peak in S6 at 40 °C, 2.0 kW in S9 (0.26 kW per string at 0.5C), outside the cells. |
+| Cell heat, SOC, cell temperature | Unchanged (< 0.0002 SOC) |
+| Terminal voltage | ±1–2 V (S6 minimum 1,373 → 1,371 V) |
+| `bench` option | S6 minimum 1,353 V, 36 kW in string hardware; S4 3 MW charge peak 1,442 V (+21 V), 49 kW. Not credible for locomotive hardware (NAT-47). |
+| Pumps (E3) | S7 8 h shift at 40 °C: +3.1 kWh TMS energy, −0.06 % SOC |
+
+**E7 VMS loss (Python reference, Rev E):** a permanent loss at peak heat (S6 at 40/45 °C, S9 at 40 °C) raises the PE loop supply by only 1–2 K over 60 min. Traction, charging and aux heat stop with the 750 V bus, so no lumped-loop limit is crossed, and cell temperature is flat (large mass, no heat input). Outage length 10–300 s changes the peak by < 1 K. **Limit:** the converters at the centre of the heat-soak risk (LB-1186, LB-1113; Zekalabs coolant limits 45/60 and 55/60 °C) have no node of their own (NAT-46), so internal soak after a hot stop is not modeled. Candidate Rev F: per-converter thermal node with Zekalabs loss and mass data.
+
+**Not changed in Rev E:** `ops_export/export_ops_baseline.m` mapping (new fields `batt.R_ext_str`, `th.P_hpump`, `sys.string_rev` show as unmapped until the Loco Ops Simulator export is updated, step 5).

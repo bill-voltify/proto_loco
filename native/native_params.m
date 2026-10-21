@@ -27,6 +27,13 @@ PN.str.tau1 = P.batt.tau1*ones(nS,nT);
 PN.str.AH   = PN.str.Q_Ah*ones(1,nT);
 
 PN.bus.R = P.batt.R_bus;
+% Rev E: per-string resistance outside the cells (P.batt.R_ext_str, per 416S string; 12 strings). A native TRB String
+% block is one 4s2p position = 2 strings in parallel, so its external resistance is R_ext_str/Np. It sits in the
+% block's Contactor (R_closed, set by fix_revE_native), which has no thermal port: heat goes to ambient, not the cells.
+% Floor 0.1 mOhm = the previous contactor value ('phase2' and r_string = 'cells').
+R_ext_str = 0;
+if isfield(P.batt,'R_ext_str'), R_ext_str = P.batt.R_ext_str; end
+PN.str.R_ext = max(R_ext_str/PN.str.Np, 0.1e-3);
 
 PN.dcl.R_pre   = P.dcl.R_pre;
 PN.dcl.C       = P.dcl.C_link;
@@ -112,6 +119,7 @@ kphi1500 = interp1(PN.ax.i_k,PN.ax.kphi_k,1500);
 fprintf('\n== Native params ==\n');
 fprintf('String: Ns=%d  Np=%g  Q=%g Ah  soc0=%g\n',PN.str.Ns,PN.str.Np,PN.str.Q_Ah,PN.str.soc0);
 fprintf('String: OCV@soc0=%.1f V  R0=%.2f mOhm  R1=%.2f mOhm\n',ocv0,PN.str.R0(1,4)*1e3,PN.str.R1(1,4)*1e3);
+fprintf('String: R_ext (contactor) = %.2f mOhm per 4s2p position\n',PN.str.R_ext*1e3);
 fprintf('DC-link: R_pre=%g Ohm  C=%g F  k_close=%g\n',PN.dcl.R_pre,PN.dcl.C,PN.dcl.k_close);
 fprintf('Axle: G=%.4f  r_w=%.3f m  R_m=%g Ohm  L_a=%g H\n',PN.ax.G,PN.ax.r_w,PN.ax.R_m,PN.ax.L_a);
 fprintf('Axle: kphi@1500A=%.2f V*s/rad  FW Ts=%g s\n',kphi1500,PN.ax.Ts_fw);

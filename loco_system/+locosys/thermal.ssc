@@ -82,6 +82,7 @@ component thermal
         P_fan_cd = {7000, 'W'};
         P_fan_pe = {7000, 'W'};
         P_pump = {1500, 'W'};
+        P_hpump = {0, 'W'};      % Rev E: PTC heater coolant pump (PDM R7), on while the heater runs
         T_fan_on = {308.15, 'K'};
         dT_fan = {10, 'K'};
         tau_m = {5, 's'};
@@ -152,7 +153,7 @@ component thermal
             Tchop_o == Tsup + (a_loss*abs(ia) + b_loss*ia^2)/(mcp_chop*fq);
             Tinv_o == Tsup + k_inv*p_aux/(mcp_inv*fq);
             Tm_o == Tm;
-            Ptms == Pcomp + Qh + P_pump*tms_en + P_fan_cd*mc*tms_en*fan_cd + P_fan_pe*f_pe*en*fan_pe;
+            Ptms == Pcomp + Qh + P_pump*tms_en + P_hpump*mh*tms_en + P_fan_cd*mc*tms_en*fan_cd + P_fan_pe*f_pe*en*fan_pe;
             Qc_o == Qc;
             Qh_o == Qh;
             Qpe_o == Qpe;

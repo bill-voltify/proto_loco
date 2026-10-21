@@ -43,11 +43,11 @@ Rows are breakpoints; numeric columns are interpolated, `state` holds until the 
 
 ## Load budget (`load_budget.csv`) — baseline: Micah's POC Power Budget Rev B
 
-One row per auxiliary load, mapped to Micah's IDs (`micah_id`): bus (750V, 72V, 24V_Ctrl, 24V_BTMS, 12V_BTMS), nominal kW in each state, `moving_kW` added while moving in TRACTION/CHARGING, and `peak_kW` for reference. Power drawn at the 750 V bus = load ÷ conversion efficiency (750V 100 %, 72V 95 %, 24V_Ctrl 95 % × 88 %, 24V_BTMS 93 %, 12V_BTMS 93.5 %, per POC Power Budget). Thermal-management loads (MTM compressors, HVH120 heater, SPAL pumps, radiator fans) are computed by the plant thermal model, not the table. An AUX_DCDC_TRIP fault sheds every budget load.
+One row per auxiliary load, mapped to Micah's IDs (`micah_id`): bus (750V, 72V, 24V_Ctrl, 24V_BTMS, 12V_BTMS), nominal kW in each state, `moving_kW` added while moving in TRACTION/CHARGING, and `peak_kW` for reference. Power drawn at the 750 V bus = load ÷ conversion efficiency (750V 100 %, 72V 95 %, 24V_Ctrl 95 % × 88 %, 24V_BTMS 93 %, 12V_BTMS 93.5 %, per POC Power Budget). Thermal-management loads (MTM compressors, HVH120 heater, SPAL pumps, radiator fans) are computed by the plant thermal model, not the table. An AUX_DCDC_TRIP or VMS_LOSS fault (`aux_ok = 0`) sheds every budget load and, from Rev E, a trace `aux_override_kW` too.
 
 State mapping is ours (Micah's sheet has nominal and peak only): SLEEP = UPS hold + wake circuit; STANDBY = control electronics; READY/TRACTION/CHARGING add cab HVAC, exterior lights, brake compressor and HSCB holding; CHARGING adds charging contactors and raised pantographs; blowers run only while moving.
 
-Plant thermal parameters follow the same baseline (`loco_system_params`, `baseline = 'poc'`): heater 12 kW (1 × HVH120), 12 kW cooling per MTM, compressor COP 4 / 3 / 1.5 at 40 / 50 / 65 °C condenser supply (3 kW nominal, 8 kW peak per module), pumps 2.58 kW. Radiator fans stay EMP (KULI, 7 kW per bank) by decision 2026-10-08; Micah's sheet lists SPAL VA117 (RSK-NEW-35). `run_regression_phase2` uses `baseline = 'phase2'`.
+Plant thermal parameters follow the same baseline (`loco_system_params`, `baseline = 'poc'`): heater 12 kW (1 × HVH120), 12 kW cooling per MTM, compressor COP 4 / 3 / 1.5 at 40 / 50 / 65 °C condenser supply (3 kW nominal, 8 kW peak per module), pumps 3.15 kW at the 750 V bus (Rev E: 4 BTMS + 3 PE SPAL × 350 W + 8 MTM internal × 60 W, via DCC65M24 93 %), heater coolant pump 50 W while the heater runs (Rev E placeholder). Radiator fans stay EMP (KULI, 7 kW per bank) by decision 2026-10-08, confirmed by the VMS equipment list 2026-10-20 (EMP FIC15-HV on 750 V). Rev E: L21 now carries only the fans' 24 V LV supply and ignition-enable (0.072 kW); the SPAL VA117 12 V row was a double count (RSK-NEW-35). L19b = second compressor on the third ACH65M30 (peak 5.1 kW, nominal 0 until its duty is confirmed). `run_regression_phase2` uses `baseline = 'phase2'`.
 
 ## Fault library (`faults/fault_library.csv`)
 
@@ -67,6 +67,7 @@ Copy rows into a run file and set `enabled = 1`, `t_start_s`, `t_end_s`. Channel
 | CHARGER_DERATE_50 | Charge power × 0.5 |
 | BTMS_24V_PS_TRIP (2 rows, one LRU) | All SPAL pumps: PE flow 5 %, battery-loop UA 20 % |
 | BTMS_12V_PS_TRIP | MTM ECUs and internal pumps lost: chillers off (LV radiator fans not modeled) |
+| VMS_LOSS (7 rows, one event; Rev E) | VMS crash: Zekalabs converters stop after 1.5 s CAN silence, so the 750 V bus is lost: `aux_ok` 0 (budget and override loads, TMS power, blowers), `comms_ok` 0 (no traction or charging), SPAL pumps off (`pump_pe` 0.05, `pump_bat` 0), EMP fans off, MTMs off. Converter heat soak is not modeled (NAT-46). Run `run_vms_loss` |
 
 Rows sharing a `fault_id` are applied together, so one LRU failure can hit several channels.
 
@@ -78,6 +79,18 @@ T = run_fault_sweep('Ambients', 40, 'Faults', {'PE_FAN_FAIL','MTM_LOSS_1'});
 T = run_fault_sweep('Parallel', true);                   % parfor workers
 ```
 Each fault is applied alone from 0.5 h to the end of a 3 h heavy-duty trace (LC-3 / LC-2 pulls at 6–8 mph on 0.3–0.5 % grade, one 30 min 2.5 MW charge), pack preconditioned to 25 °C. Output: `results/fault_sweep_<stamp>.csv` ranked by severity then time to first limit, deltas vs the no-fault baseline, and a heatmap. `by_design_stop = true` marks faults whose expected response is to stop (comms loss, Class A, E-Stop).
+
+## VMS-loss scenario (Rev E, E7)
+
+```matlab
+T = run_vms_loss();                          % S6 40/45 C, S9 40 C, CSX4091 peak2h 40 C (permanent); S6 40 C outages 10/60/300 s
+T = run_vms_loss('RString', 'bench');        % same with the bench string resistance
+```
+Onset = time of the peak PE device outlet temperature in the no-fault run; the trace is held at its last row so each run observes 60 min after onset. Output `results/vms_loss_<r_string>_<stamp>.csv`: device temperatures at onset, peak after onset (fault and no-fault) and minutes above `P.lim`. Python mirror: `reference/run_vms_loss.py`.
+
+## String resistance (Rev E)
+
+`run_loco_system(..., 'RString', 'vms' | 'cells' | 'bench')`. Default `vms`: 10.63 mΩ per string outside the cells, 90.5 mΩ per string at 25 °C in total (VMS Power_Sequencing 4.8). It adds to the battery's series resistance (scaled 1/n_str) but not to the cell heat `Qb`. `bench` = 177.5 mΩ ohmic (CO-2, VB-11) as an upper-bound sensitivity until Mitchell confirms the basis (NAT-47). 12 strings (Bill 2026-10-21); `n_str` counts strings.
 
 ## Notes and limits
 - Plant equations are the Phase 2 equations plus the fault/ambient inputs; Phase 2 limitations apply (MODEL_NOTES.md).
