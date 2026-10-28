@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 16:06 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-28 16:19 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Placeholders, replace before submitting.** CEMEX hasn't provided the Victorville route profile, so the route (9 mi one way, 6 segments, -0.92 % to 1.08 % with curvature), consist (4,000 t loaded, 1,200 t empty) and locomotive weight (420,000 lb) are assumptions. Every number below comes from those inputs. Re-run `cemex_rfi_report('Rerun', true)` once the route arrives.
 
@@ -360,20 +360,96 @@ Parked charging, pack preconditioned to 25 °C. The BMS charge limit is 2,198 A 
 
 ![Charging](fig_F2_charging.png)
 
+## G5: Heat rejection (normal and emergency conditions)
+
+Heat the locomotive rejects to the surrounding air, rebuilt second by second from the simulated thermal states with the model's own heat-path equations. Seven paths:
+
+1. **Condenser radiators:** battery heat lifted by the chillers, plus compressor power.
+2. **PE radiators:** chopper, onboard charger and inverter losses.
+3. **Traction motor blowers:** motor copper losses.
+4. **Friction brakes:** at the wheels.
+5. **Auxiliary loads:** electrical input to the cab, compressor, blowers and controls, all ending as heat.
+6. **Battery enclosure:** pack to ambient.
+7. **String connection losses.**
+
+Items 6 and 7 are grouped as "other". The pack enclosure runs below ambient on hot days, so it is a small heat *gain*.
+
+| Case | Condenser kW | PE kW | Motors kW | Friction kW | Aux kW | Other kW | Total peak kW | Mean moving kW | Mean charging kW | Shift MWh |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Base: 3 round trips, 2 MW plant charging, 40 C | 100 | 16 | 9 | 0 | 85 | -1 | **201** | 67 | 35 | 0.46 |
+| 46 C ambient, base cycle | 94 | 20 | 9 | 0 | 91 | -3 | **207** | 69 | 71 | 0.54 |
+| Maximum heat: 46 C, 655 kW motors, 3 MW plant charging | 94 | 26 | 9 | 0 | 91 | -3 | **202** | 61 | 69 | 0.57 |
+| Fault, 46 C: condenser radiator fans failed | 32 | 18 | 9 | 0 | 56 | -3 | **98** | 67 | 70 | 0.55 |
+| Fault, 46 C: PE radiator fans failed | 94 | 16 | 9 | 0 | 76 | -3 | **185** | 52 | 55 | 0.38 |
+| Fault, 46 C: traction motor blowers failed | 94 | 20 | 4 | 0 | 91 | -3 | **202** | 66 | 67 | 0.51 |
+| Fault, 46 C: VMS lost (radiator fans and chillers off) | 0 | 6 | 0 | 0 | 0 | -5 | **1** | -1 | NaN | -0.01 |
+
+Each path's figure is its highest 5-minute average in the shift. The paths peak at different times, so the "Total peak" column is the peak of the sum, not the sum of the peaks.
+
+![Heat rejection](fig_G5_heat_rejection.png)
+
+**Normal operation.** In the base case peak heat rejection is 201 kW, which occurs while pulling. The shift total is 0.46 MWh of heat.
+
+- Under way, about 67 kW goes to air on average.
+- Regen covers all the braking on this route, so the friction brakes reject almost nothing.
+- At 46 °C with 655 kW motors and 3 MW charging, the peak stays at 202 kW. The radiators reject less per kelvin of coolant temperature, which is why the condenser runs hotter (57.2 °C vs 51.9 °C).
+
+**Emergency (cooling-fault) conditions at 46 °C, base duty cycle:**
+
+| Case | Condenser max °C | PE coolant max °C | Motor max °C | Cell max °C | Discharge derate factor | Min > 2 mph slow | Verdict | Limit reached |
+|---|---|---|---|---|---|---|---|---|
+| Maximum heat: 46 C, 655 kW motors, 3 MW plant charging | 57.2 | 49.7 | 67 | 28.1 | 1.00 | 0.8 | OPTIMAL |  |
+| Fault, 46 C: condenser radiator fans failed | 64.9 | 48.5 | 67 | 28.0 | 1.00 | 0.8 | OK | PE margin 0.1 K |
+| Fault, 46 C: PE radiator fans failed | 57.2 | 59.2 | 67 | 28.0 | 1.00 | 0.8 | FAIL | charger supply > 55 C; inverter fluid > 60 C |
+| Fault, 46 C: traction motor blowers failed | 57.2 | 48.8 | 106 | 28.0 | 1.00 | 0.8 | OPTIMAL |  |
+| Fault, 46 C: VMS lost (radiator fans and chillers off) | 46.0 | 51.4 | 49 | 31.2 | 1.00 | 234.1 | FAIL | chopper fluid > 63 C |
+
+Limits:
+
+- condenser check valve: 65 °C
+- charger coolant inlet: 55 °C
+- inverter: 60 °C
+- chopper: 63 °C
+- motor: 180 °C
+- BMS hot derate: 45-50 °C cell
+
+A fan or blower failure moves heat into the remaining paths and raises temperatures. Fault by fault:
+
+- **condenser radiator fans failed:** the shift completes, but with almost no margin left (PE margin 0.1 K).
+- **PE radiator fans failed:** the shift completes on time, but coolant limits are crossed (charger supply > 55 C; inverter fluid > 60 C). This fault needs a protective response: derate charging and traction, or stop.
+- **traction motor blowers failed:** the shift completes inside all limits (motor 106 °C against 180 °C).
+- **VMS lost (radiator fans and chillers off):** the locomotive stops (234 min behind the trace) and heat rejection falls to almost nothing, but residual heat still crosses a limit (chopper fluid > 63 C).
+
+**Not modeled:**
+
+- radiator exhaust air temperature and flow (needs the radiator air-side data)
+- solar load
+- cab HVAC rejection detail (inside the aux total)
+- thermal-runaway heat release, which belongs to the battery safety case, not the operating model
+
+**The rest of G5 comes from documents, not the model:** noise, waste, hazardous materials and battery handling. Sources on Drive (not reviewed here):
+
+- *Jinko Batteries SDS*
+- *Jinko Batteries Hazard Mitigation Analysis*
+- *Jinko Fire Suppression Doc*
+- *Jinko 5MWh liquid-cooled ESS User Manual*, which gives ≤ 80 dB(A) at 1 m for the stationary container, not the locomotive
+
+Locomotive noise needs a fan and blower acoustic estimate or a measurement.
+
 ## Not answered by the model
 
 The model can't answer these RFI questions:
 
 - **D2:** individual-axle slip and slide control evidence.
 - **F3:** utility demand schedule. Peak charger demand is in F2.
-- **G5:** heat rejection. Cooling-system heat is available from the thermal model on request.
+- **G5 (non-thermal parts):** noise, waste, hazardous materials, battery handling (documents; see G5).
 - **A, B1/B3/B4, E5-E8, F1/F4-F6, G-J:** documentation and commercial items, not simulation.
 
 ## Files
 
 The answer pack is written to `cemex/rfi_out/`:
 
-- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`
+- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`, `G5_*.csv`
 - figures: `fig_*.png`
 - cached simulations: `rfi_sims.mat`
 

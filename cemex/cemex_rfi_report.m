@@ -4,7 +4,7 @@ function S = cemex_rfi_report(varargin)
 %   S = cemex_rfi_report('Rerun', true)     re-simulate everything
 %   S = cemex_rfi_report('Only', "C3")      re-simulate one group (shift | C3 | C7 | D6 | F2), keep the rest cached
 % Output (rfi_out/): RFI_answers.md (one section per question the model answers), CSV tables, PNG figures.
-% Questions answered (RFI "56 RFI questions" sheet): B2, C1-C8, D1, D3-D6, E1-E4, F2.
+% Questions answered (RFI "56 RFI questions" sheet): B2, C1-C8, D1, D3-D6, E1-E4, F2, G5 (heat rejection).
 % Evidence:
 %   simulations (run_cemex on cemex_loco_system): duty-cycle shifts (base, end of life, 46 C, wet rail, no-charging
 %     range), acceleration runs, start-on-grade runs, long descents, parked charging
@@ -62,6 +62,28 @@ if need('shift')
         SH.(cases{k, 1}) = keep(R, cases{k, 2});
     end
     SIM.shift = SH;
+    save(cache, 'SIM');
+end
+
+if need('G5')
+    fprintf('Heat-rejection runs (G5)...\n');
+    lib = read_fault_library(fullfile(fileparts(here), 'loco_system', 'faults', 'fault_library.csv'));
+    hot = {'Ambient_C', 46};
+    g5 = {
+        'max',    'Maximum heat: 46 C, 655 kW motors, 3 MW plant charging', {'Ambient_C', 46, 'PlantCharge_kW', 3000}, {'MotorCapkW', 655}, ""
+        'f_cd',   'Fault, 46 C: condenser radiator fans failed',            hot, {}, "COND_FAN_FAIL"
+        'f_pe',   'Fault, 46 C: PE radiator fans failed',                   hot, {}, "PE_FAN_FAIL"
+        'f_blow', 'Fault, 46 C: traction motor blowers failed',             hot, {}, "BLOWER_FAIL"
+        'f_vms',  'Fault, 46 C: VMS lost (radiator fans and chillers off)', hot, {}, "VMS_LOSS"
+        };
+    G5 = struct();
+    for k = 1:size(g5, 1)
+        fprintf('  %s\n', g5{k, 2});
+        F = lib; F.enabled = double(F.fault_id == g5{k, 5});
+        R = run_cemex([], 'Cycle', g5{k, 3}, g5{k, 4}{:}, 'Faults', F, 'Plot', false, 'Silent', true);
+        G5.(g5{k, 1}) = keep(R, g5{k, 2});
+    end
+    SIM.G5 = G5;
     save(cache, 'SIM');
 end
 
@@ -337,6 +359,21 @@ end
 writetable(degT, fullfile(o.Out, 'E4_degradation.csv'));
 DGc = DG{1}.checks;
 
+% G5 heat rejection to ambient, rebuilt from the thermal states with thermal.ssc's own heat-path equations
+lib = read_fault_library(fullfile(fileparts(here), 'loco_system', 'faults', 'fault_library.csv'));
+g5runs = {SH.base, SH.hot46, SIM.G5.max, SIM.G5.f_cd, SIM.G5.f_pe, SIM.G5.f_blow, SIM.G5.f_vms};
+HR = cellfun(@(x) heat_streams(x, P, lib), g5runs);
+heatT = table();
+for k = 1:numel(g5runs)
+    x = g5runs{k}; h = HR(k);
+    heatT = [heatT; table(string(x.name), x.amb(1), h.peak5.cond, h.peak5.pe, h.peak5.motor, h.peak5.fric, h.peak5.aux, h.peak5.other, h.peak5.total, ...
+        h.mean_moving.total, h.mean_charging.total, h.E.total/1e3, x.M.Tcond_max, x.M.Tsup_max, x.M.Tmotor_max, x.M.Tcell_max, x.M.k_dis_min, ...
+        x.C.time_below_ref_2mph_min, string(x.M.verdict), string(x.M.limit), 'VariableNames', {'case','ambient_C','cond_kW','pe_kW','motor_kW', ...
+        'friction_kW','aux_kW','other_kW','total_peak5_kW','total_moving_mean_kW','total_charging_mean_kW','total_shift_MWh','Tcond_max_C', ...
+        'Tpe_supply_max_C','Tmotor_max_C','Tcell_max_C','k_dis_min','min_below_ref','verdict','limit'})]; %#ok<AGROW>
+end
+writetable(heatT, fullfile(o.Out, 'G5_heat_rejection.csv'));
+
 % ---------------- Figures ----------------
 fig_te(fullfile(o.Out, 'fig_D1_te_vs_speed.png'));
 fig_shift(SH.base, fullfile(o.Out, 'fig_C2_base_shift.png'));
@@ -345,6 +382,7 @@ fig_descent(fullfile(o.Out, 'fig_D6_descent.png'));
 fig_charge(fullfile(o.Out, 'fig_F2_charging.png'));
 fig_range(fullfile(o.Out, 'fig_E3_soc.png'));
 fig_deg(fullfile(o.Out, 'fig_E4_degradation.png'));
+fig_heat(fullfile(o.Out, 'fig_G5_heat_rejection.png'));
 
 % ---------------- Answer document ----------------
 md = strings(0, 1);
@@ -690,20 +728,107 @@ tbl({'Condition', 'Peak MW', '10→80 % min', '20→90 % min', sprintf('%.0f→9
 w('![Charging](fig_F2_charging.png)');
 w('');
 
+w('## G5: Heat rejection (normal and emergency conditions)');
+w('');
+w('Heat the locomotive rejects to the surrounding air, rebuilt second by second from the simulated thermal states with the model''s own heat-path equations. Seven paths:');
+w('');
+w('1. **Condenser radiators:** battery heat lifted by the chillers, plus compressor power.');
+w('2. **PE radiators:** chopper, onboard charger and inverter losses.');
+w('3. **Traction motor blowers:** motor copper losses.');
+w('4. **Friction brakes:** at the wheels.');
+w('5. **Auxiliary loads:** electrical input to the cab, compressor, blowers and controls, all ending as heat.');
+w('6. **Battery enclosure:** pack to ambient.');
+w('7. **String connection losses.**');
+w('');
+w('Items 6 and 7 are grouped as "other". The pack enclosure runs below ambient on hot days, so it is a small heat *gain*.');
+w('');
+rows = {};
+for i = 1:height(heatT)
+    r = heatT(i, :);
+    rows(end+1, :) = {char(r.case), sprintf('%.0f', r.cond_kW), sprintf('%.0f', r.pe_kW), sprintf('%.0f', r.motor_kW), sprintf('%.0f', r.friction_kW), ...
+        sprintf('%.0f', r.aux_kW), sprintf('%.0f', r.other_kW), sprintf('**%.0f**', r.total_peak5_kW), sprintf('%.0f', r.total_moving_mean_kW), ...
+        sprintf('%.0f', r.total_charging_mean_kW), sprintf('%.2f', r.total_shift_MWh)}; %#ok<AGROW>
+end
+tbl({'Case', 'Condenser kW', 'PE kW', 'Motors kW', 'Friction kW', 'Aux kW', 'Other kW', 'Total peak kW', 'Mean moving kW', 'Mean charging kW', 'Shift MWh'}, rows);
+w('Each path''s figure is its highest 5-minute average in the shift. The paths peak at different times, so the "Total peak" column is the peak of the sum, not the sum of the peaks.');
+w('');
+w('![Heat rejection](fig_G5_heat_rejection.png)');
+w('');
+hb = HR(1);
+w('**Normal operation.** In the base case peak heat rejection is %.0f kW, which occurs %s. The shift total is %.2f MWh of heat.', heatT.total_peak5_kW(1), ...
+    iff(hb.peak_while_charging, 'during plant charging, not while pulling: the chillers remove the charging heat while the aux loads are also running', ...
+    iff(hb.peak_while_moving, 'while pulling', 'while parked')), heatT.total_shift_MWh(1));
+w('');
+w('- Under way, about %.0f kW goes to air on average.', heatT.total_moving_mean_kW(1));
+w('- Regen covers all the braking on this route, so the friction brakes reject almost nothing.');
+w('- At 46 °C with 655 kW motors and 3 MW charging, the peak stays at %.0f kW. The radiators reject less per kelvin of coolant temperature, which is why the condenser runs hotter (%.1f °C vs %.1f °C).', ...
+    heatT.total_peak5_kW(3), heatT.Tcond_max_C(3), heatT.Tcond_max_C(1));
+w('');
+w('**Emergency (cooling-fault) conditions at 46 °C, base duty cycle:**');
+w('');
+rows = {};
+for i = 3:height(heatT)
+    r = heatT(i, :);
+    rows(end+1, :) = {char(r.case), sprintf('%.1f', r.Tcond_max_C), sprintf('%.1f', r.Tpe_supply_max_C), sprintf('%.0f', r.Tmotor_max_C), ...
+        sprintf('%.1f', r.Tcell_max_C), sprintf('%.2f', r.k_dis_min), sprintf('%.1f', r.min_below_ref), char(r.verdict), char(r.limit)}; %#ok<AGROW>
+end
+tbl({'Case', 'Condenser max °C', 'PE coolant max °C', 'Motor max °C', 'Cell max °C', 'Discharge derate factor', 'Min > 2 mph slow', 'Verdict', 'Limit reached'}, rows);
+w('Limits:');
+w('');
+w('- condenser check valve: 65 °C');
+w('- charger coolant inlet: 55 °C');
+w('- inverter: 60 °C');
+w('- chopper: 63 °C');
+w('- motor: 180 °C');
+w('- BMS hot derate: 45-50 °C cell');
+w('');
+w('A fan or blower failure moves heat into the remaining paths and raises temperatures. Fault by fault:');
+w('');
+for i = 4:height(heatT)
+    r = heatT(i, :);
+    nm = erase(char(r.case), 'Fault, 46 C: ');
+    if r.verdict == "FAIL" && r.min_below_ref > 30
+        w('- **%s:** the locomotive stops (%.0f min behind the trace) and heat rejection falls to almost nothing, but residual heat still crosses a limit (%s).', nm, r.min_below_ref, r.limit);
+    elseif r.verdict == "FAIL"
+        w('- **%s:** the shift completes on time, but coolant limits are crossed (%s). This fault needs a protective response: derate charging and traction, or stop.', nm, r.limit);
+    elseif r.verdict == "OK"
+        w('- **%s:** the shift completes, but with almost no margin left (%s).', nm, r.limit);
+    else
+        w('- **%s:** the shift completes inside all limits (motor %.0f °C against 180 °C).', nm, r.Tmotor_max_C);
+    end
+end
+w('');
+w('**Not modeled:**');
+w('');
+w('- radiator exhaust air temperature and flow (needs the radiator air-side data)');
+w('- solar load');
+w('- cab HVAC rejection detail (inside the aux total)');
+w('- thermal-runaway heat release, which belongs to the battery safety case, not the operating model');
+w('');
+w('**The rest of G5 comes from documents, not the model:** noise, waste, hazardous materials and battery handling. Sources on Drive (not reviewed here):');
+w('');
+w('- *Jinko Batteries SDS*');
+w('- *Jinko Batteries Hazard Mitigation Analysis*');
+w('- *Jinko Fire Suppression Doc*');
+w('- *Jinko 5MWh liquid-cooled ESS User Manual*, which gives ≤ 80 dB(A) at 1 m for the stationary container, not the locomotive');
+w('');
+w('Locomotive noise needs a fan and blower acoustic estimate or a measurement.');
+w('');
+
 w('## Not answered by the model');
 w('');
 w('The model can''t answer these RFI questions:');
 w('');
 w('- **D2:** individual-axle slip and slide control evidence.');
 w('- **F3:** utility demand schedule. Peak charger demand is in F2.');
-w('- **G5:** heat rejection. Cooling-system heat is available from the thermal model on request.');
+w('- **G5 (non-thermal parts):** noise, waste, hazardous materials, battery handling (documents; see G5).');
 w('- **A, B1/B3/B4, E5-E8, F1/F4-F6, G-J:** documentation and commercial items, not simulation.');
 w('');
 w('## Files');
 w('');
 w('The answer pack is written to `cemex/rfi_out/`:');
 w('');
-w('- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`');
+w('- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`, `G5_*.csv`');
 w('- figures: `fig_*.png`');
 w('- cached simulations: `rfi_sims.mat`');
 w('');
@@ -718,7 +843,7 @@ fclose(fid);
 fprintf('Wrote %s\n', fullfile(o.Out, 'RFI_answers.md'));
 
 S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st_res, 'D4', D4, 'D6', dsT, ...
-    'shift', shiftT, 'range', rng, 'E4', degT, 'F2', chT, 'out', o.Out);
+    'shift', shiftT, 'range', rng, 'E4', degT, 'F2', chT, 'G5', heatT, 'out', o.Out);
 
 % ================= nested helpers =================
     function w(fmt, varargin)
@@ -850,6 +975,22 @@ S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st
         legend('Location', 'southwest');
         exportgraphics(f, fn, 'Resolution', 150); close(f);
     end
+    function fig_heat(fn)
+        f = figure('Visible', 'off', 'Position', [0 0 1200 800]);
+        tiledlayout(2, 1, 'TileSpacing', 'compact');
+        names_ = {'cond', 'pe', 'motor', 'fric', 'aux', 'other'};
+        labels_ = {'Condenser radiators', 'PE radiators', 'Motor blowers', 'Friction brakes', 'Aux loads', 'Pack enclosure + strings'};
+        for kk = [1 3]
+            x = g5runs{kk}; h = HR(kk);
+            nexttile; hold on; grid on;
+            Y = cell2mat(cellfun(@(nm) movmean(h.kW.(nm)(:), 60), names_, 'UniformOutput', false));
+            area(h.t/3600, max(Y, 0), 'LineStyle', 'none');
+            ylabel('heat to ambient, kW (1-min avg)'); title(x.name);
+            if kk == 1, legend(labels_, 'Location', 'northeast'); end
+        end
+        xlabel('hours');
+        exportgraphics(f, fn, 'Resolution', 150); close(f);
+    end
     function fig_range(fn)
         f = figure('Visible', 'off', 'Position', [0 0 1100 500]);
         hold on; grid on;
@@ -869,6 +1010,8 @@ r = R.R;
 x.name = string(name);
 x.t = r.t; x.v = r.v_mph; x.vref = r.v_ref; x.soc = r.soc; x.p_bat = r.p_bat; x.ib = r.ib;
 x.te = 4*r.te_ax; x.f_fric = r.f_fric; x.p_chg = r.p_chg; x.Tc = r.Tc;
+x.Tcd = r.Tcd; x.Tsup = r.Tsup; x.Tm = r.Tm; x.p_aux = r.p_aux; x.p_tms = r.p_tms; x.q_chill = r.q_chill; x.amb = r.ambient;
+x.faults = string(R.faults.fault_id)';
 x.grade = interp1(R.trace.SCN(:,1), R.trace.SCN(:,3), r.t, 'previous', 'extrap');
 x.M = R.metrics;
 x.C = R.cemex;
@@ -916,4 +1059,48 @@ end
 
 function s = iff(c, a, b)
 if c, s = a; else, s = b; end
+end
+
+function H = heat_streams(x, P, lib)
+% Heat to ambient by path (W), from thermal.ssc: Qrad_cd, Qrad_pe (from the supply temperature), motor UA with
+% blower, pack-to-environment, string resistance outside the cells; plus friction brakes and aux electrical input.
+f_ram = 0.2;                                          % thermal.ssc ram-air fraction
+ch = struct('fan_cd', 1, 'fan_pe', 1, 'blower_ok', 1, 'aux_ok', 1);
+for r = find(ismember(lib.fault_id, x.faults))'
+    if isfield(ch, lib.channel(r)), ch.(lib.channel(r)) = lib.active_value(r); end
+end
+th = P.th; Ta = x.amb;
+h_pe = th.UA_pe*(f_ram + (1 - f_ram)*ch.fan_pe);
+W.cond = th.UA_cd*(f_ram + (1 - f_ram)*ch.fan_cd)*(x.Tcd - Ta);
+W.pe = h_pe*(x.Tsup - Ta)/(1 - h_pe/th.mcp_pe);
+W.motor = th.UA_mot*(0.15 + 0.85*ch.blower_ok*ch.aux_ok)*(x.Tm - Ta);
+W.fric = abs(x.f_fric).*x.v*0.44704.*(x.v > 0.5);
+W.aux = x.p_aux;
+W.other = th.UA_benv*(x.Tc - Ta) + P.batt.R_ext_str/P.batt.Np*x.ib.^2;
+f = fieldnames(W);
+W.total = 0; for k = 1:numel(f), W.total = W.total + W.(f{k}); end
+f = fieldnames(W);
+tg = (x.t(1):1:x.t(end))';
+mv = interp1(x.t, double(x.v > 0.1), tg, 'previous') > 0;
+chg = interp1(x.t, double(x.p_chg > 1e3), tg, 'previous') > 0;
+for k = 1:numel(f)
+    y = interp1(x.t, W.(f{k}), tg);
+    H.kW.(f{k}) = y/1e3;
+    H.peak5.(f{k}) = max(movmean(y, 300))/1e3;
+    H.E.(f{k}) = trapz(tg, y)/3.6e6;
+    H.mean_moving.(f{k}) = mean(y(mv))/1e3;
+    H.mean_charging.(f{k}) = mean([y(chg); NaN], 'omitnan')/1e3;
+end
+H.t = tg;
+[~, ipk] = max(movmean(H.kW.total, 300));
+H.peak_while_charging = chg(ipk);
+H.peak_while_moving = mv(ipk);
+H.channels = ch;
+end
+
+function F = read_fault_library(f)
+% fault_library.csv descriptions contain spaces and colons, which can make readtable's automatic detection pick the
+% wrong delimiter (27 columns); force comma-delimited text, then hand the table to the shared loader.
+opts = detectImportOptions(f, 'Delimiter', ',', 'TextType', 'string');
+F = load_fault_table(readtable(f, opts));
 end
