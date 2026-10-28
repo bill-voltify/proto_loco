@@ -1,0 +1,7 @@
+seg,name,length_mi,grade_pct,curve_deg,speed_limit_mph,note
+1,Quarry load track,0.5,0.0,0,5,PLACEHOLDER - replace with CEMEX Victorville route profile (RFI C2)
+2,Quarry lead,1.0,0.5,4,10,PLACEHOLDER
+3,Main descent,3.0,-1.0,2,20,PLACEHOLDER - long loaded descent (RFI D4/D6 regen and braking case)
+4,Ruling grade,2.0,0.8,3,15,PLACEHOLDER - loaded climb (RFI C1/C4 critical grade)
+5,Main to plant,2.0,-0.6,1,20,PLACEHOLDER
+6,Plant lead and unload track,0.5,0.0,6,5,PLACEHOLDER

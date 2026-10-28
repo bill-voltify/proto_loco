@@ -5,6 +5,7 @@ slprj/
 *_lib.slx
 proto_loco.slx
 loco_system/voltify_loco_system.slx
+cemex/cemex_loco_system.slx
 *.mat
 results/*
 !results/*.csv
