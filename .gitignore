@@ -11,3 +11,4 @@ results/*
 !results/*.csv
 
 ops_export/*.json
+cemex/rfi_out/rfi_sims.mat

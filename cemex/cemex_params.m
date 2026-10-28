@@ -17,6 +17,9 @@ function P = cemex_params(opts)
 %   chg_P_max_kW: wayside charger cap, kW (default 3000 = Voltify manual charger, RFI B10)
 %   tms:          cooling system: 'cemex' (default, sized below) | 'gp40' (unchanged GP40 Rev E system) | struct with
 %                 any of n_mtm, k_cd, k_pe to override the CEMEX sizing
+%   soh:          battery capacity retention (default 1 = beginning of life; 0.70 = end of life, Voltify RFI response
+%                 3-Battery degradation: 8000 cycles to 70 %). BMS current limits stay at the beginning-of-life amps.
+%   r_age:        cell resistance multiplier (default 1; 1.5 assumed at end of life, not a Jinko figure)
 %
 % Six axles on a four-axle plant: the Simscape plant (loco_system/+locosys) has four axle components. Each one
 % stands for 1.5 traction motors in parallel (k = 6/4) with the same voltage: current, torque, power cap and
@@ -35,6 +38,8 @@ if nargin < 1, opts = struct(); end
 [chg_kW, opts] = take(opts, 'chg_P_max_kW', 3000);
 [wheel_in, opts] = take(opts, 'wheel_in', 40);
 [tms, opts] = take(opts, 'tms', 'cemex');
+[soh, opts] = take(opts, 'soh', 1);
+[r_age, opts] = take(opts, 'r_age', 1);
 opts.baseline = 'poc';
 opts.regen = regen;
 opts.motor_cap_kW = motor_cap_kW;
@@ -57,6 +62,10 @@ P.th.C_bat = ks*P.th.C_bat;
 P.th.UA_bc = ks*P.th.UA_bc;
 P.th.UA_benv = ks*P.th.UA_benv;
 P.th.C_bc = ks*P.th.C_bc;
+E_bol_kWh = P.batt.Ns*3.2*Ah/1e3;
+P.batt.Q_cell = soh*P.batt.Q_cell;     % aged pack: capacity and resistance only; current limits above stay
+P.batt.R0_cell = r_age*P.batt.R0_cell;
+P.batt.R1_cell = r_age*P.batt.R1_cell;
 
 % ---------------- Drivetrain: 6 x D77 on 4 modeled axles ----------------
 k = 6/4;
@@ -133,7 +142,7 @@ P.sys.model_rev = 'CEMEX-A';
 P.sys.model_rev_date = '2026-10-28';
 P.sys.base_rev = 'GP40 proto RevE';
 P.sys.n_axles = 6;
-P.sys.cemex = struct('n_str', n_str, 'E_nom_kWh', P.batt.Ns*3.2*P.batt.Q_cell*n_str/1e3, 'chg_c_rate', chg_c_rate, 'dis_c_rate', dis_c_rate, 'I_dis_max_A', P.lcc.I_dis_max, ...
+P.sys.cemex = struct('n_str', n_str, 'E_nom_kWh', soh*E_bol_kWh, 'E_bol_kWh', E_bol_kWh, 'soh', soh, 'r_age', r_age, 'chg_c_rate', chg_c_rate, 'dis_c_rate', dis_c_rate, 'I_dis_max_A', P.lcc.I_dis_max, ...
     'loco_lb', loco_lb, 'motor_cap_kW', motor_cap_kW, 'P_trac_max_MW', P.lcc.P_trac_max/1e6, 'mu_adh', mu_adh, ...
     'regen', logical(regen), 'chg_P_max_kW', chg_kW, 'wheel_in', wheel_in);
 end

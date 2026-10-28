@@ -12,6 +12,7 @@ function RUN = run_cemex(trace, varargin)
 %   MuAdh         adhesion coefficient (0.25)               Regen        true/false (true)
 %   ChargerkW     wayside charger cap, kW (3000)            ReserveSOC   required SOC at all times (0.20)
 %   TMS           'cemex' (default) | 'gp40' | struct(n_mtm, k_cd, k_pe), see cemex_params
+%   SOH, RAge     battery capacity retention (1) and resistance multiplier (1); 0.70 / 1.5 = end of life
 %   T0_C          initial pack temperature, C (25 = preconditioned; [] = soaked at ambient)
 %   Faults, Budget, Ambient_C, AmbientOffset_C, T0_C, soc0, bms, MaxStep, Plot, Build, Silent, RString, ShowWarnings
 % RUN.cemex holds the RFI C5 / D5 metrics: energy per cycle, peak power, min / reserve SOC, regen recovered.
@@ -35,6 +36,8 @@ p.addParameter('Ambient_C', []);
 p.addParameter('AmbientOffset_C', 0);
 p.addParameter('T0_C', 25);       % pack held at 25 C while parked (RFI D17); [] = soaked at ambient
 p.addParameter('TMS', 'cemex');
+p.addParameter('SOH', 1);
+p.addParameter('RAge', 1);
 p.addParameter('soc0', 0.9);
 p.addParameter('bms', 'jinko');
 p.addParameter('MaxStep', 1);
@@ -62,7 +65,7 @@ ff = o.Faults; if ~istable(ff) && ~isfile(ff), ff = fullfile(base, ff); end
 F = load_fault_table(ff);
 P = cemex_params(struct('T_amb_C', TR.ambient0_C, 'T0_C', o.T0_C, 'soc0', o.soc0, 'bms', o.bms, ...
     'r_string', o.RString, 'n_str', o.Strings, 'chg_c_rate', o.ChgCRate, 'dis_c_rate', o.DisCRate, 'loco_lb', o.LocoLb, ...
-    'motor_cap_kW', o.MotorCapkW, 'mu_adh', o.MuAdh, 'regen', o.Regen, 'chg_P_max_kW', o.ChargerkW, 'tms', o.TMS));
+    'motor_cap_kW', o.MotorCapkW, 'mu_adh', o.MuAdh, 'regen', o.Regen, 'chg_P_max_kW', o.ChargerkW, 'tms', o.TMS, 'soh', o.SOH, 'r_age', o.RAge));
 FLT = build_fault_matrix(F, TR.t_end, P);
 B = load_budget_table(o.Budget);
 

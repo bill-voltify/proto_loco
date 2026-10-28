@@ -12,6 +12,7 @@ RUN = run_cemex([], 'Cycle', {'Trips', 6, 'PlantCharge_kW', 0});      % range wi
 RUN = run_cemex([], 'Strings', 16, 'DisCRate', 1.0, 'MuAdh', 0.18); % capacity / C-rate / wet-rail sensitivity
 RUN = run_cemex([], 'DisCRate', 0.5);                               % previous discharge limit (Jinko 0.5C)
 RUN = run_cemex('traces/cemex_victorville_shift.csv', 'T0_C', []); % saved trace, pack soaked at ambient (off-design start)
+cemex_rfi_report()                                  % RFI answer pack -> rfi_out/RFI_answers.md (+ CSVs, figures), ~10 min
 ```
 
 `RUN.cemex` holds the metrics RFI C5 and D5 ask for: energy per cycle, peak power, minimum and reserve SOC, regen recovered vs friction braking, peak TE and speed shortfall. `RUN.metrics` holds the GP40 thermal verdict.
@@ -27,6 +28,8 @@ RUN = run_cemex('traces/cemex_victorville_shift.csv', 'T0_C', []); % saved trace
 | `build_cemex_model.m`, `cemex_loco_system.slx` | Renamed copy of the GP40 system model |
 | `run_cemex.m` | Runner + RFI metrics |
 | `results_cases.csv` | First sensitivity set (2026-10-28) |
+| `cemex_rfi_report.m`, `cemex_capability.m` | RFI answer pack (B2, C1-C8, D1, D3-D6, E1-E3, F2) and TE/BE curves from the plant equations |
+| `rfi_out/` | `RFI_answers.md`, per-question CSVs, figures (cache `rfi_sims.mat` not tracked) |
 
 ## RFI → model mapping
 
