@@ -567,6 +567,50 @@ end
 tbl({'mph', 'TE max kN', 'TE continuous kN', 'TE wet kN', 'Regen braking kN', 'TE max limited by'}, rows);
 w('Full curve: `D1_te_be_vs_speed.csv`.');
 w('');
+w('**Against the reference locomotive.** CEMEX''s Victorville fleet has run second-hand EMD SD40-2s and SD60s (and GP39-2s). The RFI''s 3,500-3,800 hp reference matches the **SD60 (3,800 hp)**.');
+w('');
+w('Published ratings vary between sources; these are the most-cited values:');
+w('');
+w('- **SD60:** 98,250 lbf starting at 25 %% adhesion; 100,000 lbf continuous at 9.8 mph; D87B motors, 77:17; about 368,000 lb');
+w('- **SD40-2:** 115,000 lbf starting at 31.5 %%; 82,100 lbf continuous at 11 mph; D77 motors, 62:15');
+w('');
+w('Beyond each unit''s continuous point, its curve is drawn at the rail power implied by that point: TE × mph / 375. Values below are continuous ratings in lbf.');
+w('');
+RF = struct('name', {'EMD SD60 (reference, 3,800 hp)', 'EMD SD40-2 (3,000 hp)'}, 'st', {98250, 115000}, 'st_basis', {'25 % adh.', '31.5 % adh.'}, ...
+    'tc', {100000, 82100}, 'vc', {9.8, 11});
+ref_te = @(r, v) min(r.tc, 375*(r.tc*r.vc/375)./max(v, 0.1));
+P77 = cemex_params(struct('gear', 77/17));
+TEs77 = cemex_capability(P77, vgrid, 'Mode', 'start');
+[TEc77, Ic77] = cemex_capability(P77, vgrid, 'Mode', 'cont');
+v_cont77 = vgrid(find(Ic77.limit == "motor current", 1, 'last'));
+spd_ref = [5 10 15 20];
+rows = {};
+for r = RF
+    rows(end+1, :) = [{r.name, sprintf('%s (%s)', th(r.st), r.st_basis), sprintf('%s @ %.1f mph', th(r.tc), r.vc), th(r.tc*r.vc/375)}, ...
+        arrayfun(@(s) th(ref_te(r, s)), spd_ref, 'UniformOutput', false)]; %#ok<AGROW>
+end
+cm = {{'CEMEX battery loco, 62:15 (as modeled)', TEs, TEc, v_cont}, {'CEMEX battery loco, 77:17 regear', TEs77, TEc77, v_cont77}};
+vx = zeros(1, 2); vhi = vx;
+for i = 1:2
+    c_ = cm{i};
+    tcl = at(c_{3}, c_{4})/lbf;
+    rows(end+1, :) = [{c_{1}, sprintf('%s (%.2f × %s lb)', th(c_{2}(1)/lbf), P.lcc.mu_adh, th(c.loco_lb)), sprintf('%s @ %.1f mph', th(tcl), c_{4}), ...
+        th(tcl*c_{4}/375)}, arrayfun(@(s) th(at(c_{3}, s)/lbf), spd_ref, 'UniformOutput', false)]; %#ok<AGROW>
+    ok = c_{3}/lbf >= ref_te(RF(1), vgrid) - 1;
+    vx(i) = vgrid(find(ok, 1));                                  % from here up the battery loco >= SD60
+    j_ = find(~ok & vgrid > vx(i), 1); if isempty(j_), vhi(i) = Inf; else, vhi(i) = vgrid(j_); end
+end
+tbl({'Locomotive', 'Starting TE lbf', 'Continuous TE lbf', 'Rail hp at continuous point', '5 mph', '10 mph', '15 mph', '20 mph'}, rows);
+w('What this shows:');
+w('');
+w('- **Continuous TE at low speed is short of the SD60.** As modeled (SD40-2 drivetrain: D77, 62:15) the locomotive matches the SD40-2 but is %s lbf below the SD60 continuous rating. It equals or exceeds the SD60 from %.1f to %.0f mph, where its higher rail power (%s hp vs about %s) takes over. Above %.0f mph the 750 V-per-motor limit inherited from the GP40 proto cuts power; that is outside the 20 mph route but contradicts the "no high-speed power fall-off" in Voltify''s questionnaire answer (B9).', ...
+    th(RF(1).tc - at(TEc, 5)/lbf), vx(1), vhi(1), th(P_rail/745.7), th(RF(1).tc*RF(1).vc/375), vhi(1));
+w('- **A 77:17 regear** (the SD60 ratio) raises continuous TE to %s lbf and crosses the SD60 from %.1f mph. Full continuous power then starts at %.1f mph instead of %.1f mph. The cost is top speed, which falls by the same %.1f %%; that doesn''t matter on a 20 mph quarry line.', ...
+    th(at(TEc77, 5)/lbf), vx(2), v_cont77, v_cont, 100*(1 - (62/15)/(77/17)));
+w('- **Closing the rest of the gap at 10 mph** takes more current than the D77 continuous rating (1,050 A), or a larger motor (D87/D90). Matching the SD60 low-speed rating is a motor and blower decision, not a battery or power question: the battery locomotive has about %.0f %% more rail power.', 100*(P_rail/745.7/(RF(1).tc*RF(1).vc/375) - 1));
+w('- **Starting TE depends on weight and adhesion, not the motors.** Six D77s at their 5-minute current give %s lbf. The value in the table is adhesion-limited at μ %.2f on the placeholder weight. The SD60''s published figure assumes 25 %% on about 393,000 lb. At SD60 weight (368,000 lb) the battery locomotive would start at %s lbf, so it needs its battery ballast (%s lb is within the 70,000 lb axle load) or better adhesion from per-axle control (D2) to match.', ...
+    th(motor_TE0/lbf), P.lcc.mu_adh, th(P.lcc.mu_adh*368000), th(c.loco_lb));
+w('');
 
 w('## D3: Brake blending');
 w('');

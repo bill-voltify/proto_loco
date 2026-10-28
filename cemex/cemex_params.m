@@ -13,6 +13,7 @@ function P = cemex_params(opts)
 %   loco_lb:      locomotive weight, lb (default 420,000: PLACEHOLDER, six-axle battery loco; no CEMEX weight yet)
 %   motor_cap_kW: per-motor power cap, kW (default 536 = D77 FRA rating -> 3.2 MW; 655 = chopper rating -> 3.9 MW)
 %   mu_adh:       adhesion coefficient (default 0.25 dry; RFI C6 asks for wet / low adhesion, try 0.18)
+%   gear:         D77 gear ratio (default 62/15, SD40-2 / GP40; 77/17 = SD60-style low-speed gearing, +9.6 % TE)
 %   regen:        true (default; RFI 5-Regenerative Braking requires regen to the battery)
 %   chg_P_max_kW: wayside charger cap, kW (default 3000 = Voltify manual charger, RFI B10)
 %   tms:          cooling system: 'cemex' (default, sized below) | 'gp40' (unchanged GP40 Rev E system) | struct with
@@ -37,6 +38,7 @@ if nargin < 1, opts = struct(); end
 [regen, opts] = take(opts, 'regen', true);
 [chg_kW, opts] = take(opts, 'chg_P_max_kW', 3000);
 [wheel_in, opts] = take(opts, 'wheel_in', 40);
+[gear, opts] = take(opts, 'gear', 62/15);
 [tms, opts] = take(opts, 'tms', 'cemex');
 [soh, opts] = take(opts, 'soh', 1);
 [r_age, opts] = take(opts, 'r_age', 1);
@@ -88,6 +90,7 @@ P.th.mcp_chop = k*P.th.mcp_chop;
 P.th.C_mot = k*P.th.C_mot;
 P.th.UA_mot = k*P.th.UA_mot;
 P.lcc.P_trac_max = 6*motor_cap_kW*1e3;
+P.ax.G = gear;                     % D77 gear ratio (62:15 GP40/SD40-2; 77:17 = SD60-style low-speed gearing)
 P.lcc.mu_adh = mu_adh;
 
 % ---------------- Cooling (TMS) ----------------
@@ -144,7 +147,7 @@ P.sys.base_rev = 'GP40 proto RevE';
 P.sys.n_axles = 6;
 P.sys.cemex = struct('n_str', n_str, 'E_nom_kWh', soh*E_bol_kWh, 'E_bol_kWh', E_bol_kWh, 'soh', soh, 'r_age', r_age, 'chg_c_rate', chg_c_rate, 'dis_c_rate', dis_c_rate, 'I_dis_max_A', P.lcc.I_dis_max, ...
     'loco_lb', loco_lb, 'motor_cap_kW', motor_cap_kW, 'P_trac_max_MW', P.lcc.P_trac_max/1e6, 'mu_adh', mu_adh, ...
-    'regen', logical(regen), 'chg_P_max_kW', chg_kW, 'wheel_in', wheel_in);
+    'regen', logical(regen), 'chg_P_max_kW', chg_kW, 'wheel_in', wheel_in, 'gear', gear);
 end
 
 function [v, s] = take(s, name, default)

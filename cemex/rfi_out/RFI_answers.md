@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 16:19 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-28 16:41 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Placeholders, replace before submitting.** CEMEX hasn't provided the Victorville route profile, so the route (9 mi one way, 6 segments, -0.92 % to 1.08 % with curvature), consist (4,000 t loaded, 1,200 t empty) and locomotive weight (420,000 lb) are assumptions. Every number below comes from those inputs. Re-run `cemex_rfi_report('Rerun', true)` once the route arrives.
 
@@ -186,6 +186,29 @@ Rollback is prevented by the park/anti-rollback brake whenever speed is commande
 | 40 | 82 | 82 | 82 | 180 | motor voltage |
 
 Full curve: `D1_te_be_vs_speed.csv`.
+
+**Against the reference locomotive.** CEMEX's Victorville fleet has run second-hand EMD SD40-2s and SD60s (and GP39-2s). The RFI's 3,500-3,800 hp reference matches the **SD60 (3,800 hp)**.
+
+Published ratings vary between sources; these are the most-cited values:
+
+- **SD60:** 98,250 lbf starting at 25 % adhesion; 100,000 lbf continuous at 9.8 mph; D87B motors, 77:17; about 368,000 lb
+- **SD40-2:** 115,000 lbf starting at 31.5 %; 82,100 lbf continuous at 11 mph; D77 motors, 62:15
+
+Beyond each unit's continuous point, its curve is drawn at the rail power implied by that point: TE × mph / 375. Values below are continuous ratings in lbf.
+
+| Locomotive | Starting TE lbf | Continuous TE lbf | Rail hp at continuous point | 5 mph | 10 mph | 15 mph | 20 mph |
+|---|---|---|---|---|---|---|---|
+| EMD SD60 (reference, 3,800 hp) | 98,250 (25 % adh.) | 100,000 @ 9.8 mph | 2,613 | 100,000 | 98,000 | 65,333 | 49,000 |
+| EMD SD40-2 (3,000 hp) | 115,000 (31.5 % adh.) | 82,100 @ 11.0 mph | 2,408 | 82,100 | 82,100 | 60,207 | 45,155 |
+| CEMEX battery loco, 62:15 (as modeled) | 105,036 (0.25 × 420,000 lb) | 82,550 @ 19.0 mph | 4,183 | 82,550 | 82,550 | 82,550 | 78,438 |
+| CEMEX battery loco, 77:17 regear | 105,036 (0.25 × 420,000 lb) | 90,460 @ 17.2 mph | 4,161 | 90,460 | 90,460 | 90,460 | 78,438 |
+
+What this shows:
+
+- **Continuous TE at low speed is short of the SD60.** As modeled (SD40-2 drivetrain: D77, 62:15) the locomotive matches the SD40-2 but is 17,450 lbf below the SD60 continuous rating. It equals or exceeds the SD60 from 12.0 to 35 mph, where its higher rail power (4,183 hp vs about 2,613) takes over. Above 35 mph the 750 V-per-motor limit inherited from the GP40 proto cuts power; that is outside the 20 mph route but contradicts the "no high-speed power fall-off" in Voltify's questionnaire answer (B9).
+- **A 77:17 regear** (the SD60 ratio) raises continuous TE to 90,460 lbf and crosses the SD60 from 11.0 mph. Full continuous power then starts at 17.2 mph instead of 19.0 mph. The cost is top speed, which falls by the same 8.7 %; that doesn't matter on a 20 mph quarry line.
+- **Closing the rest of the gap at 10 mph** takes more current than the D77 continuous rating (1,050 A), or a larger motor (D87/D90). Matching the SD60 low-speed rating is a motor and blower decision, not a battery or power question: the battery locomotive has about 60 % more rail power.
+- **Starting TE depends on weight and adhesion, not the motors.** Six D77s at their 5-minute current give 126,328 lbf. The value in the table is adhesion-limited at μ 0.25 on the placeholder weight. The SD60's published figure assumes 25 % on about 393,000 lb. At SD60 weight (368,000 lb) the battery locomotive would start at 92,000 lbf, so it needs its battery ballast (420,000 lb is within the 70,000 lb axle load) or better adhesion from per-axle control (D2) to match.
 
 ## D3: Brake blending
 
