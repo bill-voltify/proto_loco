@@ -4,7 +4,7 @@ function S = cemex_rfi_report(varargin)
 %   S = cemex_rfi_report('Rerun', true)     re-simulate everything
 %   S = cemex_rfi_report('Only', "C3")      re-simulate one group (shift | C3 | C7 | D6 | F2), keep the rest cached
 % Output (rfi_out/): RFI_answers.md (one section per question the model answers), CSV tables, PNG figures.
-% Questions answered (RFI "56 RFI questions" sheet): B2, C1-C8, D1, D3-D6, E1-E3, F2.
+% Questions answered (RFI "56 RFI questions" sheet): B2, C1-C8, D1, D3-D6, E1-E4, F2.
 % Evidence:
 %   simulations (run_cemex on cemex_loco_system): duty-cycle shifts (base, end of life, 46 C, wet rail, no-charging
 %     range), acceleration runs, start-on-grade runs, long descents, parked charging
@@ -316,6 +316,27 @@ for k = 1:numel(CH.run)
 end
 writetable(chT, fullfile(o.Out, 'F2_charging.csv'));
 
+% E4 degradation: BLAST-Lite LFP prismatic model, cycle term anchored to the EVE MB31 datasheet, driven by the
+% simulated base shift (SOC and cell temperature). Operating schedules are PLACEHOLDERS (CEMEX hasn't given them).
+deg_cases = {
+    'Base: 2 shifts/day, 6 days/week, parked on charge at 25 °C', {}
+    '2 shifts/day, 7 days/week',                                   {'DaysPerWeek', 7}
+    '1 shift/day, 5 days/week',                                    {'ShiftsPerDay', 1, 'DaysPerWeek', 5}
+    'Hot: cells at 35 °C all the time (no conditioning)',          {'ParkT_C', 35, 'ShiftT_C', 35}
+    'Conservative cycle life: 4,000 cycles to 80 % (EVE LF304)',   {'Anchor', struct('cycles', 4000, 'soh', 0.80, 'T_C', 25, 'crate', 0.5)}
+    };
+DG = cell(size(deg_cases, 1), 1);
+degT = table();
+for k = 1:size(deg_cases, 1)
+    DG{k} = cemex_degradation(SH.base, 'Years', 25, deg_cases{k, 2}{:});
+    d = DG{k};
+    degT = [degT; table(string(deg_cases{k, 1}), d.efc_per_year, d.soh_at(1)*100, d.soh_at(2)*100, d.soh_at(3)*100, d.soh_at(4)*100, ...
+        d.years_to_80, d.years_to_70, 100*d.cal_share_at_eol, d.cycle_scale, 'VariableNames', {'case','efc_per_year','soh_5y','soh_10y', ...
+        'soh_15y','soh_20y','years_to_80','years_to_70','calendar_share_pct','cycle_scale'})]; %#ok<AGROW>
+end
+writetable(degT, fullfile(o.Out, 'E4_degradation.csv'));
+DGc = DG{1}.checks;
+
 % ---------------- Figures ----------------
 fig_te(fullfile(o.Out, 'fig_D1_te_vs_speed.png'));
 fig_shift(SH.base, fullfile(o.Out, 'fig_C2_base_shift.png'));
@@ -323,6 +344,7 @@ fig_acc(fullfile(o.Out, 'fig_C3_acceleration.png'));
 fig_descent(fullfile(o.Out, 'fig_D6_descent.png'));
 fig_charge(fullfile(o.Out, 'fig_F2_charging.png'));
 fig_range(fullfile(o.Out, 'fig_E3_soc.png'));
+fig_deg(fullfile(o.Out, 'fig_E4_degradation.png'));
 
 % ---------------- Answer document ----------------
 md = strings(0, 1);
@@ -609,6 +631,52 @@ w('');
 w('![SOC](fig_E3_soc.png)');
 w('');
 
+w('## E4: Battery degradation');
+w('');
+d1 = DG{1};
+w('**Model.** NREL BLAST-Lite `Lfp_Gr_250AhPrismatic`: a semi-empirical model for large-format LFP/graphite prismatic cells, fitted to published aging data (doi:10.1016/j.est.2023.109042), ported to MATLAB in `cemex_degradation.m`. It has two parts:');
+w('');
+w('- **Calendar fade** grows with the square root of time. It speeds up with temperature and with high SOC, through the graphite anode potential.');
+w('- **Cycle fade** grows with charge throughput (equivalent full cycles), depth of discharge and C-rate.');
+w('');
+w('**Anchored to the cell.** The cycle term is scaled (×%.2f) so the model reproduces the EVE MB31 314 Ah datasheet (PBRI-MB31-D06-01): 8,000 cycles to 70 %% at 25 °C, 0.5P/0.5P, 100 %% DOD. EVE publishes no calendar-aging curve, so the calendar term is BLAST''s, unchanged. Against EVE data not used in the fit:', d1.cycle_scale);
+w('');
+w('- **28-day storage at 50 %% SOC:** the model keeps %.1f %% at 25 °C and %.1f %% at 45 °C. EVE specifies at least 98 %% and 97 %% recovery, so the model is consistent.', 100*DGc.storage_28d_25C(end), 100*DGc.storage_28d_45C(end));
+w('- **Cycles to 80 %% at 0.5C/0.5C:** the model gives %s at 25 °C and %s at 45 °C. The EVE LF304 (same family, earlier cell) is rated 4,000 and 1,800. The model under-predicts heat damage from cycling at 45 °C. The CEMEX pack runs at 25-28 °C, where the anchor applies; the conservative case below covers the cycle-life uncertainty.', th(DGc.cycles80_25C), th(DGc.cycles80_45C));
+w('');
+w('**Duty.** The base shift simulated above, using its SOC and cell temperature second by second. That is %.2f equivalent full cycles per shift, including the plant charging. Between shifts the pack sits on charge at %.0f %% SOC, held at 25 °C by the cooling system. **The operating schedule is a placeholder**; CEMEX hasn''t given shifts per day or days per year.', d1.shift_efc, 100*d1.park_soc);
+w('');
+rows = {};
+for i = 1:height(degT)
+    r = degT(i, :);
+    rows(end+1, :) = {char(r.case), th(r.efc_per_year), sprintf('%.1f', r.soh_5y), sprintf('%.1f', r.soh_10y), sprintf('%.1f', r.soh_15y), ...
+        sprintf('%.1f', r.soh_20y), yr(r.years_to_80), yr(r.years_to_70), sprintf('%.0f', r.calendar_share_pct)}; %#ok<AGROW>
+end
+tbl({'Case', 'Full cycles / yr', 'SOH 5 y %', '10 y %', '15 y %', '20 y %', 'Years to 80 %', 'Years to 70 %', 'Calendar share of fade %'}, rows);
+w('![Degradation](fig_E4_degradation.png)');
+w('');
+w('**What it means for CEMEX**');
+w('');
+w('- **Replacement threshold: 70 %% SOH.** E2 shows the base duty cycle still completes with reserve at 70 %% capacity (minimum SOC %.1f %%). In the base case the pack reaches 70 %% %s.', E.soc_min_pct, iff(isinf(d1.years_to_70), 'after more than 25 years', sprintf('after %.1f years', d1.years_to_70)));
+w('- **Design life: 20 years**, the Jinko container design life. In the base case, SOH at 20 years is %.0f %%. The conservative cycle-life case gives %.0f %%.', 100*d1.soh_at(4), degT.soh_20y(end));
+w('- **Calendar aging is about half the fade.** At %s full cycles a year, the pack is far from its 8,000-cycle rating. Time, temperature and resting SOC matter as much as use.', th(d1.efc_per_year));
+w('- **Temperature is the biggest lever.** Without conditioning (35 °C) the pack reaches 80 %% at %s instead of %s. That supports the TMS holding the pack at 25 °C while parked.', yr(degT.years_to_80(4)), yr(degT.years_to_80(1)));
+w('- **Proposed warranted retention:** at least %.0f %% at 10 years. This is the conservative-case value, rounded down %.0f points for margin. It is subject to a back-to-back warranty from Jinko/EVE and to the confirmed CEMEX schedule.', 5*floor((degT.soh_10y(end) - 2)/5), degT.soh_10y(end) - 5*floor((degT.soh_10y(end) - 2)/5));
+w('');
+w('Limits:');
+w('');
+w('- capacity only; resistance growth is assumed at 1.5× at end of life (E2) and not modeled');
+w('- BLAST fit range 10-45 °C, charge rate up to 0.65C (the regen and charge limit is 0.5C, inside the range)');
+w('- placeholder route and schedule');
+w('- the EVE MB31 datasheet copy is from a distributor; confirm the revision with EVE');
+w('');
+w('To make E4 a warranted figure, we need from EVE/Jinko:');
+w('');
+w('- calendar aging at 25, 35 and 45 °C and at several SOCs');
+w('- cycle life at 35-45 °C');
+w('- the pack-level warranty curve');
+w('');
+
 w('## F2: Charging time');
 w('');
 w('Parked charging, pack preconditioned to 25 °C. The BMS charge limit is %s A (0.5C), about %.1f MW at the battery, so a 3 MW charger is battery-limited. The "normal window" is from the SOC after a 3-trip shift with no charging (%.0f %%) back to 90 %%.', th(P.lcc.I_chg_max), P.lcc.I_chg_max*416*3.25/1e6, 100*soc_norm);
@@ -626,7 +694,6 @@ w('## Not answered by the model');
 w('');
 w('The model can''t answer these RFI questions:');
 w('');
-w('- **E4:** battery degradation model. It needs Jinko cycle and calendar aging data; only the end-of-life case is run.');
 w('- **D2:** individual-axle slip and slide control evidence.');
 w('- **F3:** utility demand schedule. Peak charger demand is in F2.');
 w('- **G5:** heat rejection. Cooling-system heat is available from the thermal model on request.');
@@ -636,7 +703,7 @@ w('## Files');
 w('');
 w('The answer pack is written to `cemex/rfi_out/`:');
 w('');
-w('- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `F2_*.csv`');
+w('- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`');
 w('- figures: `fig_*.png`');
 w('- cached simulations: `rfi_sims.mat`');
 w('');
@@ -651,7 +718,7 @@ fclose(fid);
 fprintf('Wrote %s\n', fullfile(o.Out, 'RFI_answers.md'));
 
 S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st_res, 'D4', D4, 'D6', dsT, ...
-    'shift', shiftT, 'range', rng, 'F2', chT, 'out', o.Out);
+    'shift', shiftT, 'range', rng, 'E4', degT, 'F2', chT, 'out', o.Out);
 
 % ================= nested helpers =================
     function w(fmt, varargin)
@@ -770,6 +837,19 @@ S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st
         legend(a1, 'Location', 'southeast'); title(a1, 'Parked charging from 10 % SOC'); title(a2, 'Charger power');
         exportgraphics(f, fn, 'Resolution', 150); close(f);
     end
+    function fig_deg(fn)
+        f = figure('Visible', 'off', 'Position', [0 0 1100 550]);
+        hold on; grid on;
+        for kk = 1:numel(DG)
+            plot(DG{kk}.years, 100*DG{kk}.soh, 'LineWidth', 1.5 + 0.8*(kk == 1), 'DisplayName', deg_cases{kk, 1});
+        end
+        yline(80, 'k--', '80 %', 'HandleVisibility', 'off');
+        yline(70, 'r--', '70 % replacement threshold', 'HandleVisibility', 'off');
+        xlabel('years in service'); ylabel('capacity (SOH) %'); ylim([60 100]); xlim([0 25]);
+        title('Battery capacity fade: BLAST-Lite LFP prismatic, cycle term anchored to EVE MB31 (8,000 cycles to 70 %)');
+        legend('Location', 'southwest');
+        exportgraphics(f, fn, 'Resolution', 150); close(f);
+    end
     function fig_range(fn)
         f = figure('Visible', 'off', 'Position', [0 0 1100 500]);
         hold on; grid on;
@@ -828,4 +908,12 @@ end
 
 function s = yn(b)
 if b, s = 'yes'; else, s = 'NO'; end
+end
+
+function s = yr(x)
+if isinf(x), s = '> 25'; else, s = sprintf('%.1f', x); end
+end
+
+function s = iff(c, a, b)
+if c, s = a; else, s = b; end
 end

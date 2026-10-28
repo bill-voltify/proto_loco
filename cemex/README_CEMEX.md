@@ -28,7 +28,8 @@ cemex_rfi_report()                                  % RFI answer pack -> rfi_out
 | `build_cemex_model.m`, `cemex_loco_system.slx` | Renamed copy of the GP40 system model |
 | `run_cemex.m` | Runner + RFI metrics |
 | `results_cases.csv` | First sensitivity set (2026-10-28) |
-| `cemex_rfi_report.m`, `cemex_capability.m` | RFI answer pack (B2, C1-C8, D1, D3-D6, E1-E3, F2) and TE/BE curves from the plant equations |
+| `cemex_rfi_report.m`, `cemex_capability.m` | RFI answer pack (B2, C1-C8, D1, D3-D6, E1-E4, F2) and TE/BE curves from the plant equations |
+| `cemex_degradation.m` | E4 capacity fade: NREL BLAST-Lite LFP prismatic model (MATLAB port), cycle term anchored to EVE MB31 314 Ah (8,000 cycles to 70 %), driven by the simulated shift |
 | `rfi_out/` | `RFI_answers.md`, per-question CSVs, figures (cache `rfi_sims.mat` not tracked) |
 
 ## RFI → model mapping
@@ -104,4 +105,4 @@ What this shows (route still a placeholder):
 
 ## Limits
 
-GP40 plant limitations apply (see `../MODEL_NOTES.md`, `../loco_system/README_SYSTEM.md`): rigid axle coupling (no per-axle slip/IAC), no dynamic-brake grids, and a time-based trace. The trace runs at the speed limit, so if the loco falls behind, grades arrive early. Check `speed_shortfall_max_mph`. The GP40 shared plant gives about 1 solver warning per 30 s of simulated time on both models (GP40 S7: 873 over 8 h). Battery degradation (RFI E4) is not modeled.
+GP40 plant limitations apply (see `../MODEL_NOTES.md`, `../loco_system/README_SYSTEM.md`): rigid axle coupling (no per-axle slip/IAC), no dynamic-brake grids, and a time-based trace. The trace runs at the speed limit, so if the loco falls behind, grades arrive early. Check `speed_shortfall_max_mph`. The GP40 shared plant gives about 1 solver warning per 30 s of simulated time on both models (GP40 S7: 873 over 8 h). Battery degradation (RFI E4) is capacity only (`cemex_degradation.m`); resistance growth is an assumed 1.5x at end of life.
