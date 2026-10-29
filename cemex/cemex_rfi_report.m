@@ -1233,13 +1233,13 @@ w('Each path''s figure is its highest 5-minute average in the shift. The paths p
 w('');
 w('![Heat rejection](fig_G5_heat_rejection.png)');
 w('');
-hb = HR(1);
-w('**Normal operation.** In the base case peak heat rejection is %.0f kW, which occurs %s. The shift total is %.2f MWh of heat.', heatT.total_peak5_kW(1), ...
-    iff(hb.peak_while_charging, 'during plant charging, not while pulling: the chillers remove the charging heat while the aux loads are also running', ...
-    iff(hb.peak_while_moving, 'while pulling', 'while parked')), heatT.total_shift_MWh(1));
+% Locomotive's own equipment: sum of the non-friction path peaks (an upper bound, since the paths peak at different times)
+loco_kW = heatT.cond_kW + heatT.pe_kW + heatT.motor_kW + heatT.aux_kW + max(heatT.other_kW, 0);
+w('**Normal operation.** In the base case peak heat rejection is %.0f kW, set by the friction brakes (%.0f kW): the train air brakes on the cars, holding the part of the -2.71 %% loaded descent beyond the locomotive''s adhesion (D3). That heat is released at the car wheels along the train. The locomotive''s own equipment rejects at most %.0f kW (the sum of its condenser, PE, motor and aux path peaks). The shift total is %.2f MWh of heat.', ...
+    heatT.total_peak5_kW(1), heatT.friction_kW(1), loco_kW(1), heatT.total_shift_MWh(1));
 w('');
-w('- Under way, about %.0f kW goes to air on average.', heatT.total_moving_mean_kW(1));
-w('- Regen covers all the braking on this route, so the friction brakes reject almost nothing.');
+w('- Under way, about %.0f kW goes to air on average, train brakes included.', heatT.total_moving_mean_kW(1));
+w('- Regen takes as much of the braking as adhesion and the battery allow; the friction peak is the remainder on the steepest grade.');
 w('- At 46 °C with 655 kW motors and 3 MW charging, the peak stays at %.0f kW. The radiators reject less per kelvin of coolant temperature, which is why the condenser runs hotter (%.1f °C vs %.1f °C).', ...
     heatT.total_peak5_kW(3), heatT.Tcond_max_C(3), heatT.Tcond_max_C(1));
 w('');

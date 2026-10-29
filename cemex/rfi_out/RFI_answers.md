@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 21:39 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-29 12:23 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Route and inputs.** Duty cycle on the Black Mountain Quarry -> Victorville plant run profile (EMD SD40-2, 11.0 mi, 48 min loaded): loaded downhill as run, empty uphill on the same profile reversed, grades -2.71 % to +2.71 %. Loaded train 2,470 t; **assumed:** empty train 740 t (30 % of loaded), locomotive weight 420,000 lb, operating schedule. Re-run `cemex_rfi_report('Rerun', true)` when these are confirmed.
 
@@ -559,10 +559,10 @@ Each path's figure is its highest 5-minute average in the shift. The paths peak 
 
 ![Heat rejection](fig_G5_heat_rejection.png)
 
-**Normal operation.** In the base case peak heat rejection is 1496 kW, which occurs while pulling. The shift total is 1.31 MWh of heat.
+**Normal operation.** In the base case peak heat rejection is 1496 kW, set by the friction brakes (1442 kW): the train air brakes on the cars, holding the part of the -2.71 % loaded descent beyond the locomotive's adhesion (D3). That heat is released at the car wheels along the train. The locomotive's own equipment rejects at most 221 kW (the sum of its condenser, PE, motor and aux path peaks). The shift total is 1.31 MWh of heat.
 
-- Under way, about 236 kW goes to air on average.
-- Regen covers all the braking on this route, so the friction brakes reject almost nothing.
+- Under way, about 236 kW goes to air on average, train brakes included.
+- Regen takes as much of the braking as adhesion and the battery allow; the friction peak is the remainder on the steepest grade.
 - At 46 °C with 655 kW motors and 3 MW charging, the peak stays at 1591 kW. The radiators reject less per kelvin of coolant temperature, which is why the condenser runs hotter (57.2 °C vs 51.9 °C).
 
 **Emergency (cooling-fault) conditions at 46 °C, base duty cycle:**
