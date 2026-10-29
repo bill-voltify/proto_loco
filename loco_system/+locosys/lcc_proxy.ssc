@@ -8,6 +8,7 @@ component lcc_proxy
 %   3. train air brakes on the trailing cars: up to k_tb*m_trail*g (demand beyond the locomotive)
 %   4. locomotive friction: the rest, with the locomotive total (regen + grids + friction) <= adhesion
 % Defaults (P_db_max 0, k_tb 0, soc_reg_max 2) remove steps 2-3 and the taper: identical to the Rev E proxy.
+% Slip control (2026-10-30, D2): k_com = lowest axle slip-control factor, used by the axles in common mode (sc_mode 2).
     inputs
         v_ref = {0, 'm/s'};
         v = {0, 'm/s'};
@@ -19,6 +20,10 @@ component lcc_proxy
         n_ax_on = {4, '1'};
         n_str = {12, '1'};
         soc = {0.5, '1'};
+        k1 = {1, '1'};
+        k2 = {1, '1'};
+        k3 = {1, '1'};
+        k4 = {1, '1'};
     end
     outputs
         TE_ax = {0, 'N'};
@@ -26,6 +31,7 @@ component lcc_proxy
         F_fric = {0, 'N'};
         F_db = {0, 'N'};
         F_tb = {0, 'N'};
+        k_com = {1, '1'};
     end
     parameters
         m_loco = {122470, 'kg'};
@@ -93,6 +99,7 @@ component lcc_proxy
             F_fric == B_db + B_tb + B_lf + F_hold;
             F_db == B_db;
             F_tb == B_tb;
+            k_com == min(min(k1, k2), min(k3, k4));
         end
     end
 end

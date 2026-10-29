@@ -16,6 +16,7 @@ function RUN = run_cemex(trace, varargin)
 %   DbkW, Ktb, SocRegMax  dynamic-brake grid kW ([] = traction cap), train air brake capacity (0.03 x trailing weight),
 %                 regen cut-off SOC (0.95); see cemex_params
 %   Gear, VMotMax  D77 gear ratio (62/15) and armature voltage limit per motor, V ([] = 750)
+%   Slip          struct of P.slip overrides: wheel slip model and slip/slide control (see loco_system_params, RFI D2)
 %   T0_C          initial pack temperature, C (25 = preconditioned; [] = soaked at ambient)
 %   Faults, Budget, Ambient_C, AmbientOffset_C, T0_C, soc0, bms, MaxStep, Plot, Build, Silent, RString, ShowWarnings
 % RUN.cemex holds the RFI C5 / D5 metrics: energy per cycle, peak power, min / reserve SOC, regen recovered.
@@ -46,6 +47,7 @@ p.addParameter('Ktb', 0.03);
 p.addParameter('SocRegMax', 0.95);
 p.addParameter('Gear', 62/15);
 p.addParameter('VMotMax', []);
+p.addParameter('Slip', struct());
 p.addParameter('soc0', 0.9);
 p.addParameter('bms', 'jinko');
 p.addParameter('MaxStep', 1);
@@ -73,7 +75,7 @@ ff = o.Faults; if ~istable(ff) && ~isfile(ff), ff = fullfile(base, ff); end
 F = load_fault_table(ff);
 P = cemex_params(struct('T_amb_C', TR.ambient0_C, 'T0_C', o.T0_C, 'soc0', o.soc0, 'bms', o.bms, ...
     'r_string', o.RString, 'n_str', o.Strings, 'chg_c_rate', o.ChgCRate, 'dis_c_rate', o.DisCRate, 'loco_lb', o.LocoLb, ...
-    'motor_cap_kW', o.MotorCapkW, 'mu_adh', o.MuAdh, 'regen', o.Regen, 'chg_P_max_kW', o.ChargerkW, 'tms', o.TMS, 'soh', o.SOH, 'r_age', o.RAge, 'db_kW', o.DbkW, 'k_tb', o.Ktb, 'soc_reg_max', o.SocRegMax, 'gear', o.Gear, 'v_mot_max', o.VMotMax));
+    'motor_cap_kW', o.MotorCapkW, 'mu_adh', o.MuAdh, 'regen', o.Regen, 'chg_P_max_kW', o.ChargerkW, 'tms', o.TMS, 'soh', o.SOH, 'r_age', o.RAge, 'db_kW', o.DbkW, 'k_tb', o.Ktb, 'soc_reg_max', o.SocRegMax, 'gear', o.Gear, 'v_mot_max', o.VMotMax, 'slip', o.Slip));
 FLT = build_fault_matrix(F, TR.t_end, P);
 B = load_budget_table(o.Budget);
 

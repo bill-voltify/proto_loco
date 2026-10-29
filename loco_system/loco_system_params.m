@@ -145,6 +145,15 @@ P.lcc.P_db_max = 0;
 P.lcc.v_db_blend = 2.2;
 P.lcc.k_tb = 0;
 P.lcc.eta_reg = P.lcc.eta_drv;   % regen-limit efficiency (lcc_proxy P_reg); default = eta_drv, identical to Rev E
+% Wheel slip (2026-10-30, axle.ssc): model 0 = wheels locked to the vehicle, identical to Rev E (the other fields are then unused).
+%   model 1: wheelset speed state + creep law; mode 0 none | 1 per-axle | 2 common slip/slide control; J_w wheelset + armature
+%   inertia at the wheel; wt weight transfer per axle (dN = wt x 4 x TE_ref); x_off axle positions from the lead axle, m;
+%   mu_rail adhesion at the creep peak; s_tab/mu_tab normalised creep curve (peak 1 at 2 % creep); s_tgt controller creep
+%   target; K_sc cut rate, 1/s per unit creep; tau_r recovery, s; x_p0..x_p1 contaminated patch, m; f_patch adhesion factor on it.
+P.slip = struct('model', 0, 'mode', 1, 'J_w', 1000, 'wt', [0 0 0 0], 'x_off', [0 -2.1 -12.2 -14.3], 'mu_rail', 0.25, ...
+    's_tab', [-1 -0.5 -0.2 -0.1 -0.05 -0.03 -0.02 -0.01 -0.005 0 0.005 0.01 0.02 0.03 0.05 0.1 0.2 0.5 1], ...
+    'mu_tab', [-0.6 -0.65 -0.72 -0.8 -0.9 -0.97 -1 -0.75 -0.45 0 0.45 0.75 1 0.97 0.9 0.8 0.72 0.65 0.6], ...
+    'v_s0', 1, 's_tgt', 0.02, 'K_sc', 50, 'tau_r', 2, 'x_p0', 1e9, 'x_p1', 1e9, 'f_patch', 1);
 if ~P.sys.regen
     P.lcc.I_chg_max = 0;
 end

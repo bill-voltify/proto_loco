@@ -312,7 +312,10 @@ map = {
     'P_chg_max','P.chg.P_max'; 'I_chg_hw','P.chg.I_hw'; 'I_chg_bms','P.chg.I_bms'; 'soc_max','P.chg.soc_max'; 'soc_band','P.chg.soc_band';
     'wn_v','P.sys.wn_v'; 'zeta_v','P.sys.zeta_v'; 'mu_adh','P.lcc.mu_adh'; 'P_trac_max','P.lcc.P_trac_max';
     'I_dis_max','P.lcc.I_dis_max'; 'I_chg_max','P.lcc.I_chg_max'; 'eta_drv','P.lcc.eta_drv'; 'eta_reg','P.lcc.eta_reg';
-    'soc_reg_max','P.lcc.soc_reg_max'; 'soc_reg_band','P.lcc.soc_reg_band'; 'P_db_max','P.lcc.P_db_max'; 'v_db_blend','P.lcc.v_db_blend'; 'k_tb','P.lcc.k_tb'};
+    'soc_reg_max','P.lcc.soc_reg_max'; 'soc_reg_band','P.lcc.soc_reg_band'; 'P_db_max','P.lcc.P_db_max'; 'v_db_blend','P.lcc.v_db_blend'; 'k_tb','P.lcc.k_tb';
+    'sl_model','P.slip.model'; 'sl_mode','P.slip.mode'; 'sl_J_w','P.slip.J_w'; 'sl_wt','P.slip.wt'; 'sl_x_off','P.slip.x_off';
+    'sl_mu_rail','P.slip.mu_rail'; 'sl_s_tab','P.slip.s_tab'; 'sl_mu_tab','P.slip.mu_tab'; 'sl_v_s0','P.slip.v_s0'; 'sl_s_tgt','P.slip.s_tgt';
+    'sl_K_sc','P.slip.K_sc'; 'sl_tau_r','P.slip.tau_r'; 'sl_x_p0','P.slip.x_p0'; 'sl_x_p1','P.slip.x_p1'; 'sl_f_patch','P.slip.f_patch'};
 thf = fieldnames(P.th);
 map = [map; [strcat('th_', thf), strcat('P.th.', thf)]];
 end

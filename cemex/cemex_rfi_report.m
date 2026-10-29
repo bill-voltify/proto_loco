@@ -240,6 +240,36 @@ if need('F2')
     save(cache, 'SIM');
 end
 
+% D2 slip and slide control: wheelset dynamics and creep law on (P.slip.model 1). Three control strategies:
+% none, per axle, and locomotive level (every axle cut to the factor of the worst one, as on a single-chopper or
+% per-truck system). Weight transfer unloads the lead axles of each truck (ASSUMED, 10 % at full adhesion on the lead
+% axle). The wet patch halves the rail adhesion over 30 m.
+sl_wt = [-0.10 -0.04 0.04 0.10];
+sl_modes = {0, 'none'; 1, 'per_axle'; 2, 'loco_level'};
+if need('D2')
+    fprintf('Slip and slide control runs (D2)...\n');
+    d2 = {
+        'dry',   'Loaded start, dry rail, controller asks for 30 % adhesion', 0.30, 0, 1e9, 1e9, 1, [0 0; 5 0; 25 10; 125 10]
+        'patch', 'Loaded start, wet patch (adhesion x 0.5 over 30 m)',        0.25, 0, 20, 50, 0.5, [0 0; 5 0; 25 10; 125 10]
+        'slide', 'Loaded descent, regen braking over a wet patch',            0.30, crit_dn_loaded, 300, 330, 0.5, [0 0; 5 0; 65 12; 245 12]
+        };
+    SL = struct();
+    for i = 1:size(d2, 1)
+        for m = 1:size(sl_modes, 1)
+            if strcmp(d2{i, 1}, 'slide') && sl_modes{m, 1} == 2, continue; end
+            fprintf('  %s: %s\n', d2{i, 2}, sl_modes{m, 2});
+            sl = struct('model', 1, 'mode', sl_modes{m, 1}, 'wt', sl_wt, 'mu_rail', 0.25, ...
+                'x_p0', d2{i, 5}, 'x_p1', d2{i, 6}, 'f_patch', d2{i, 7});
+            rows = d2{i, 8};
+            T = mk_trace(rows(:, 1), rows(:, 2), d2{i, 4}, CO.LoadedTons, 0, CO.Ambient_C);
+            R = run_cemex(T, 'Plot', false, 'Silent', true, 'soc0', 0.6, 'MuAdh', d2{i, 3}, 'Slip', sl);
+            SL.([d2{i, 1} '_' sl_modes{m, 2}]) = keep(R, sprintf('%s, %s', d2{i, 2}, strrep(sl_modes{m, 2}, '_', ' ')));
+        end
+    end
+    SIM.D2 = SL;
+    save(cache, 'SIM');
+end
+
 % ---------------- Curves and tables ----------------
 c = P.sys.cemex;
 vgrid = (0:0.25:45)';
@@ -565,6 +595,7 @@ fig_charge(fullfile(o.Out, 'fig_F2_charging.png'));
 fig_range(fullfile(o.Out, 'fig_E3_soc.png'));
 fig_deg(fullfile(o.Out, 'fig_E4_degradation.png'));
 fig_heat(fullfile(o.Out, 'fig_G5_heat_rejection.png'));
+fig_slip(fullfile(o.Out, 'fig_D2_slip_control.png'));
 
 % ---------------- Answer document ----------------
 md = strings(0, 1);
@@ -901,6 +932,73 @@ tbl({'Armature limit per motor', 'Full power up to', 'TE at 30 mph, lbf', 'TE at
 w('Voltify''s questionnaire answer (B9) describes 1.5 kV power electronics with no high-speed fall-off; that corresponds to the 1,000 V and higher rows here. The motor''s voltage rating and the chopper topology (motors in series pairs, or one chopper each) need to be confirmed before the curve is quoted. None of this affects the 20 mph Black Mountain route.');
 w('');
 
+% ---------------- D2: slip and slide control ----------------
+D2r = SIM.D2;
+W_adh = 0.25*P.veh.m_loco*g;                    % locomotive weight x rail adhesion peak (dry)
+d2rows = {}; d2T = table();
+for fn = string(fieldnames(D2r))'
+    x = D2r.(fn);
+    cs = extractBefore(fn, '_'); md_ = extractAfter(fn, '_');
+    Fr = sum(x.fc, 2);
+    if cs == "slide"
+        win = x.t > 70;                                       % holding 12 mph down the grade
+        t10 = NaN;
+    else
+        i10 = find(x.v >= 9.9, 1);
+        t10 = x.t(i10) - 5;
+        win = x.t > 5 & x.t <= x.t(i10);
+    end
+    dt = [diff(x.t); 0];
+    Fm = sum(abs(Fr(win)).*dt(win))/sum(dt(win));
+    spin = sum(dt.*any(abs(x.s) > 0.10, 2));
+    d2T = [d2T; table(cs, md_, t10, Fm/1e3, Fm/4.448/1e3, 100*Fm/W_adh, max(abs(x.s), [], 'all'), spin, ...
+        sum(abs(x.f_tb).*x.v*mps.*dt)/3.6e6, ...
+        'VariableNames', {'case', 'control', 'time_to_10mph_s', 'mean_rail_force_kN', 'mean_rail_force_klbf', ...
+        'adhesion_used_pct', 'max_creep', 'time_creep_over_10pct_s', 'train_air_kWh'})]; %#ok<AGROW>
+end
+writetable(d2T, fullfile(o.Out, 'D2_slip_control.csv'));
+ctl = @(s) iff(s == "none", 'No slip control', iff(s == "per_axle", '**Per-axle control**', 'Locomotive-level control'));
+d2v = @(cs, md_, f) d2T.(f)(d2T.case == cs & d2T.control == md_);
+
+w('## D2: Individual-axle slip and slide control');
+w('');
+w('For this question the model gives each axle its own wheelset speed. Each wheelset is coupled to the rail through an adhesion-versus-creep curve that peaks at 2 %% creep and falls to 60 %% of the peak at full spin, the usual shape for steel on steel. Each axle has its own controller. The controller cuts that axle''s torque while its creep is above 2 %%, then restores the torque over about 2 s. Per-axle control needs one power controller per motor, or per motor pair; the chopper arrangement is still to be confirmed (see D1). Two alternatives are run for comparison:');
+w('');
+w('- **no slip control;**');
+w('- **locomotive-level control:** every axle cut to the factor of the worst axle, as on a locomotive where several motors share one power control.');
+w('');
+w('Three cases, all with the loaded %s t train:', th(CO.LoadedTons));
+w('');
+w('1. **Dry-rail start.** Starting on level track and accelerating to 10 mph. The rail gives 25 %% adhesion at the creep peak, and the controller asks for 30 %%. As tractive effort builds, weight transfer unloads the lead axle of each truck (lead axle 10 %% lighter at full adhesion, assumed).');
+w('2. **Wet patch.** The same start, crossing a 30 m wet patch where adhesion halves. The controller asks for 25 %%.');
+w('3. **Regen slide.** Holding 12 mph down the %.2f %% grade on regen, over a 30 m wet patch; electric braking is asked for at 30 %% adhesion.', abs(crit_dn_loaded));
+w('');
+rows = {};
+for cs = ["dry", "patch", "slide"]
+    for md_ = ["none", "per_axle", "loco_level"]
+        if ~any(d2T.case == cs & d2T.control == md_), continue; end
+        rows(end+1, :) = {iff(md_ == "none", char(iff(cs == "dry", '1. Dry-rail start', iff(cs == "patch", '2. Wet patch', '3. Regen slide'))), ''), ctl(md_), ...
+            iff(isnan(d2v(cs, md_, 'time_to_10mph_s')), '-', sprintf('%.0f s', d2v(cs, md_, 'time_to_10mph_s'))), ...
+            sprintf('%s (%.0f %%)', th(d2v(cs, md_, 'mean_rail_force_klbf')*1e3), d2v(cs, md_, 'adhesion_used_pct')), ...
+            iff(d2v(cs, md_, 'max_creep') > 1, iff(cs == "slide", 'wheels locked', sprintf('spin, wheels at %.0fx train speed', d2v(cs, md_, 'max_creep'))), sprintf('%.0f %%', 100*d2v(cs, md_, 'max_creep'))), sprintf('%.1f s', d2v(cs, md_, 'time_creep_over_10pct_s'))}; %#ok<AGROW>
+    end
+end
+tbl({'Case', 'Control', 'Time to 10 mph', 'Mean rail force, lbf (adhesion used)', 'Peak creep', 'Time above 10 % creep'}, rows);
+w('*Mean rail force is taken while accelerating (cases 1-2) or while holding speed on the grade (case 3). Adhesion used is relative to 25 %% of the %s lb locomotive weight. Peak creep includes a short spike of under 1 s at starting, before the controller catches it.*', th(P.veh.m_loco/0.453592));
+w('');
+w('What the runs show:');
+w('');
+w('- **Without slip control, the wheels spin or lock.** In traction, wheel speed reaches about %.0f times train speed, and the wheels spend %.0f s above 10 %% creep. In braking, the wheels lock (100 %% creep) for most of the descent and the train air brakes have to hold the train. That means flat spots and rail burns: slip control is not optional.', d2v("dry", "none", 'max_creep'), d2v("dry", "none", 'time_creep_over_10pct_s'));
+w('- **Per-axle control holds every axle near its own adhesion peak.** On dry rail the locomotive uses %.0f %% of the available adhesion and reaches 10 mph in %.0f s. Locomotive-level control uses %.0f %% and takes %.0f s, because every axle is held back to the lightest (lead) axle.', ...
+    d2v("dry", "per_axle", 'adhesion_used_pct'), d2v("dry", "per_axle", 'time_to_10mph_s'), d2v("dry", "loco_level", 'adhesion_used_pct'), d2v("dry", "loco_level", 'time_to_10mph_s'));
+w('- **On the wet patch, only the axle on the patch backs off.** The other axles keep pulling and recover each in turn as the patch passes under them. Mean rail force is %s lbf, against %s lbf when every axle is cut together.', th(d2v("patch", "per_axle", 'mean_rail_force_klbf')*1e3), th(d2v("patch", "loco_level", 'mean_rail_force_klbf')*1e3));
+w('- **Slide control works the same way under regen.** It holds %s lbf of electric braking, against %s lbf with locked wheels and none. The train air brakes then do less of the work: %.0f kWh against %.0f kWh over the run.', th(d2v("slide", "per_axle", 'mean_rail_force_klbf')*1e3), th(d2v("slide", "none", 'mean_rail_force_klbf')*1e3), d2v("slide", "per_axle", 'train_air_kWh'), d2v("slide", "none", 'train_air_kWh'));
+w('');
+w('![D2 slip control](fig_D2_slip_control.png)');
+w('');
+w('Limitations: the creep curve, weight transfer and controller gains are generic, not measured on CEMEX rail. The modeled controller is deliberately simple. It cuts torque and recovers in cycles of about 1 Hz on the wet patch (see the creep trace), so a production creep controller should do at least as well. The model has four axle units, each one 1.5 motors, so "per axle" here means per axle unit of 1.5 motors; the locomotive needs one controller per motor, or per motor pair, to match this. Dynamic-brake grid effort is applied directly at the rail in the model, so the slide case covers regen braking only. Final evidence for D2 is a slip/slide test on the locomotive (sanding off, wet rail), which the model can be fitted to.');
+w('');
+
 w('## D3: Brake blending');
 w('');
 w('As simulated, the speed controller asks for one braking effort, which is met automatically at every time step in this order:');
@@ -1218,7 +1316,6 @@ w('## Not answered by the model');
 w('');
 w('The model can''t answer these RFI questions:');
 w('');
-w('- **D2:** individual-axle slip and slide control evidence.');
 w('- **G5 (non-thermal parts):** noise, waste, hazardous materials, battery handling (documents; see G5).');
 w('- **A, B1/B3/B4, E5-E8, F1/F4-F6, G-J:** documentation and commercial items, not simulation.');
 w('');
@@ -1226,7 +1323,7 @@ w('## Files');
 w('');
 w('The answer pack is written to `cemex/rfi_out/`:');
 w('');
-w('- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`, `G5_*.csv`');
+w('- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D2_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`, `G5_*.csv`');
 w('- figures: `fig_*.png`');
 w('- cached simulations: `rfi_sims.mat`');
 w('');
@@ -1408,6 +1505,30 @@ S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st
         xlabel('hours'); ylabel('SOC %'); ylim([0 100]); legend('Location', 'southwest'); title('State of charge through one shift');
         exportgraphics(f, fn, 'Resolution', 150); close(f);
     end
+    function fig_slip(fn)
+        X = SIM.D2;
+        f = figure('Visible', 'off', 'Position', [0 0 1100 800]);
+        tiledlayout(f, 3, 1);
+        nexttile; hold on; grid on;
+        for md_ = ["none", "per_axle", "loco_level"]
+            x = X.("patch_" + md_);
+            plot(x.t, sum(x.fc, 2)/4448, 'LineWidth', 1.5, 'DisplayName', strrep(md_, '_', ' '));
+        end
+        ylabel('rail force, klbf'); legend('Location', 'southeast'); title('Wet patch: total rail force by control strategy'); xlim([0 60]);
+        nexttile; hold on; grid on;
+        x = X.patch_per_axle;
+        plot(x.t, 100*x.s, 'LineWidth', 1.2); yline(2, 'k--', 'target');
+        ylabel('creep %'); ylim([-2 25]); legend(["axle 1 (lead)", "axle 2", "axle 3", "axle 4"], 'Location', 'northeast');
+        title('Wet patch, per-axle control: creep per axle as the patch passes under each'); xlim([0 60]);
+        nexttile; hold on; grid on;
+        for md_ = ["none", "per_axle"]
+            x = X.("slide_" + md_);
+            plot(x.t, -sum(x.fc, 2)/4448, 'LineWidth', 1.5, 'DisplayName', strrep(md_, '_', ' '));
+        end
+        ylabel('braking rail force, klbf'); xlabel('seconds'); legend('Location', 'southeast');
+        title('Regen descent: electric braking at the rail');
+        exportgraphics(f, fn, 'Resolution', 150); close(f);
+    end
 end
 
 % ================= local functions =================
@@ -1421,6 +1542,9 @@ x.Tcd = r.Tcd; x.Tsup = r.Tsup; x.Tm = r.Tm; x.p_aux = r.p_aux; x.p_tms = r.p_tm
 x.faults = string(R.faults.fault_id)';
 x.f_db = zeros(size(r.t)); x.f_tb = x.f_db;
 if isfield(r, 'f_db'), x.f_db = r.f_db; x.f_tb = r.f_tb; end
+if isfield(r, 's1') && isfield(R.params, 'slip_model') && R.params.slip_model == 1          % wheel slip runs only (D2)
+    x.s = [r.s1 r.s2 r.s3 r.s4]; x.fc = [r.fc1 r.fc2 r.fc3 r.fc4]; x.k = [r.k1 r.k2 r.k3 r.k4];
+end
 x.grade = interp1(R.trace.SCN(:,1), R.trace.SCN(:,3), r.t, 'previous', 'extrap');
 x.M = R.metrics;
 x.C = R.cemex;

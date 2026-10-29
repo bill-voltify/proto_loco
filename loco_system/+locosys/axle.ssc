@@ -1,4 +1,12 @@
 component axle
+% DC series traction motor, gear and wheelset.
+% Wheel slip (2026-10-30, CEMEX RFI D2): slip_model = 1 gives the wheelset its own speed state and couples it to
+% the vehicle through a creep-force law; slip_model = 0 (default) locks the wheel to the vehicle, identical to Rev E.
+%   creep s = (wheel speed - vehicle speed)/max(|vehicle speed|, v_s0)
+%   rail force Fc = mu_rail*f_patch(x)*N*mu_tab(s), N = m_ax*g + wt*N_axm*TE_ref (weight transfer)
+%   slip/slide control: factor k on the torque reference, cut while |s| > s_tgt, recovering with tau_r;
+%   sc_mode 0 = none, 1 = per axle (own k), 2 = common (k_com: the lowest k of all axles, from lcc_proxy)
+%   contaminated patch: rail adhesion x f_patch between track positions x_p0 and x_p1 (axle at x + x_off)
     nodes
         p = foundation.electrical.electrical;
         n = foundation.electrical.electrical;
@@ -6,11 +14,15 @@ component axle
     end
     inputs
         TE_ref = {0, 'N'};
+        k_com = {1, '1'};
     end
     outputs
         ia = {0, 'A'};
         va = {0, 'V'};
         idc = {0, 'A'};
+        s = {0, '1'};
+        fc = {0, 'N'};
+        k_sc = {1, '1'};
     end
     parameters
         G = {4.1333, '1'};
@@ -33,11 +45,37 @@ component axle
         P_eps = {1e3, 'W'};
         I_tab = {[0 100 200 400 600 800 1000 1200 1400 1600 1800], 'A'};
         T_tab = {[0 138 510 1752 3413 5302 7300 9339 11378 13399 15393], 'N*m'};
+        slip_model = {0, '1'};     % 0: wheel locked to the vehicle (Rev E); 1: wheelset dynamics + creep law
+        sc_mode = {1, '1'};        % slip/slide control: 0 none, 1 per axle, 2 common
+        J_w = {1000, 'kg*m^2'};    % wheelset + armature inertia at the wheel
+        m_ax = {30617, 'kg'};      % static load on this axle
+        N_axm = {4, '1'};          % axles sharing TE_ref (weight transfer scales with total TE)
+        wt = {0, '1'};             % weight transfer: dN = wt*N_axm*TE_ref (negative = unloads)
+        mu_rail = {0.25, '1'};     % rail adhesion at the creep-curve peak
+        s_tab = {[-1 -0.5 -0.2 -0.1 -0.05 -0.03 -0.02 -0.01 -0.005 0 0.005 0.01 0.02 0.03 0.05 0.1 0.2 0.5 1], '1'};
+        mu_tab = {[-0.6 -0.65 -0.72 -0.8 -0.9 -0.97 -1 -0.75 -0.45 0 0.45 0.75 1 0.97 0.9 0.8 0.72 0.65 0.6], '1'};
+        v_s0 = {1, 'm/s'};         % creep reference speed floor (standstill)
+        s_tgt = {0.02, '1'};       % controller creep target
+        K_sc = {50, '1/s'};        % torque cut rate per unit creep above target
+        tau_r = {2, 's'};          % torque recovery time constant
+        x_off = {0, 'm'};          % axle position relative to the lead axle (negative = behind)
+        x_p0 = {1e9, 'm'};         % contaminated patch start (track position of the lead axle at t = 0 is 0)
+        x_p1 = {1e9, 'm'};         % contaminated patch end
+        f_patch = {1, '1'};        % adhesion factor on the patch
+        g = {9.81, 'm/s^2'};
     end
     variables
         i_a = {0, 'A'};
         i_dc = {0, 'A'};
         t = {0, 'N*m'};
+        ww = {0, 'rad/s'};
+        x = {0, 'm'};
+        k = {1, '1'};
+        k_use = {1, '1'};
+        wm = {0, 'rad/s'};
+        T_ax = {0, 'N*m'};
+        F_c = {0, 'N'};
+        s_c = {0, '1'};
     end
     branches
         i_dc : p.i -> n.i;
@@ -45,25 +83,56 @@ component axle
     end
     equations
         let
-            wm = G*W.w;
             kphi = tablelookup(I_kphi, Kphi_tab, max(abs(i_a), If_min), interpolation = linear, extrapolation = nearest);
             E = kphi*wm;
             Vdc = p.v - n.v;
             Vmax = min(D_max*max(Vdc, {0, 'V'}), V_mot_max);
             Tm_lim = P_ax_max/max(abs(wm), w_floor);
-            Tm_ref = min(max(TE_ref*r_w/G, -Tm_lim), Tm_lim);
+            Tm_ref = min(max(k_use*TE_ref*r_w/G, -Tm_lim), Tm_lim);
             Iref = min(max(sign(Tm_ref)*tablelookup(T_tab, I_tab, abs(Tm_ref), interpolation = linear, extrapolation = nearest), -I_max), I_max);
             Va = min(max(E + R_m*i_a + Kp_i*(Iref - i_a), {0, 'V'}), Vmax);
             Tm = kphi*i_a;
-            Tax = G*Tm*(eta_g + (1/eta_g - eta_g)*0.5*(1 - tanh(Tm*wm/P_eps)));
             Ploss = a_loss*abs(i_a) + b_loss*i_a^2;
         in
             L_a*der(i_a) == Va - E - R_m*i_a;
-            t == -Tax;
+            T_ax == G*Tm*(eta_g + (1/eta_g - eta_g)*0.5*(1 - tanh(Tm*wm/P_eps)));
             i_dc*max(Vdc, V_floor) == Va*i_a + Ploss;
             ia == i_a;
             va == Va;
             idc == i_dc;
+            s == s_c;
+            fc == F_c;
+            k_sc == k;
+        end
+    end
+    if slip_model == 0
+        equations
+            wm == G*W.w;
+            t == -T_ax;
+            ww == W.w;
+            x == {0, 'm'};
+            k == 1;
+            k_use == 1;
+            F_c == T_ax/r_w;
+            s_c == 0;
+        end
+    else
+        equations
+            let
+                vv = W.w*r_w;
+                xa = x + x_off;
+                fp = 1 - (1 - f_patch)*0.5*(tanh((xa - x_p0)/{1, 'm'}) - tanh((xa - x_p1)/{1, 'm'}));
+                N = max(m_ax*g + wt*N_axm*TE_ref, 0.2*m_ax*g);
+            in
+                wm == G*ww;
+                s_c == (ww*r_w - vv)/max(abs(vv), v_s0);
+                F_c == mu_rail*fp*N*tablelookup(s_tab, mu_tab, s_c, interpolation = linear, extrapolation = nearest);
+                J_w*der(ww) == T_ax - F_c*r_w;
+                t == -F_c*r_w;
+                der(x) == vv;
+                der(k) == -K_sc*max(abs(s_c) - s_tgt, 0)*k + (1 - k)/tau_r;
+                k_use == if sc_mode == 1, k elseif sc_mode == 2, k_com else 1 end;
+            end
         end
     end
 end

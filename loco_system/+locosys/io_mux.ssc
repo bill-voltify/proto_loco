@@ -30,11 +30,23 @@ component io_mux
         kc = {0, '1'};
         fdb = {0, 'N'};
         ftb = {0, 'N'};
+        s1 = {0, '1'};
+        s2 = {0, '1'};
+        s3 = {0, '1'};
+        s4 = {0, '1'};
+        fc1 = {0, 'N'};
+        fc2 = {0, 'N'};
+        fc3 = {0, 'N'};
+        fc4 = {0, 'N'};
+        k1 = {1, '1'};
+        k2 = {1, '1'};
+        k3 = {1, '1'};
+        k4 = {1, '1'};
     end
     outputs
-        y = {zeros(30, 1), '1'};
+        y = {zeros(42, 1), '1'};
     end
     equations
-        y == [v/{0.44704, 'm/s'}; soc; vt/{1, 'V'}; ib/{1, 'A'}; vlink/{1, 'V'}; ia/{1, 'A'}; va/{1, 'V'}; te/{1, 'N'}; ff/{1, 'N'}; pa/{1, 'W'}; pc/{1, 'W'}; idc/{1, 'A'}; Tc/{1, 'K'}; Tb/{1, 'K'}; Tcs/{1, 'K'}; Tcd/{1, 'K'}; Tsup/{1, 'K'}; Tchg/{1, 'K'}; Tchop/{1, 'K'}; Tinv/{1, 'K'}; Tm/{1, 'K'}; ptms/{1, 'W'}; qc/{1, 'W'}; qh/{1, 'W'}; qb/{1, 'W'}; qpe/{1, 'W'}; kd; kc; fdb/{1, 'N'}; ftb/{1, 'N'}];
+        y == [v/{0.44704, 'm/s'}; soc; vt/{1, 'V'}; ib/{1, 'A'}; vlink/{1, 'V'}; ia/{1, 'A'}; va/{1, 'V'}; te/{1, 'N'}; ff/{1, 'N'}; pa/{1, 'W'}; pc/{1, 'W'}; idc/{1, 'A'}; Tc/{1, 'K'}; Tb/{1, 'K'}; Tcs/{1, 'K'}; Tcd/{1, 'K'}; Tsup/{1, 'K'}; Tchg/{1, 'K'}; Tchop/{1, 'K'}; Tinv/{1, 'K'}; Tm/{1, 'K'}; ptms/{1, 'W'}; qc/{1, 'W'}; qh/{1, 'W'}; qb/{1, 'W'}; qpe/{1, 'W'}; kd; kc; fdb/{1, 'N'}; ftb/{1, 'N'}; s1; s2; s3; s4; fc1/{1, 'N'}; fc2/{1, 'N'}; fc3/{1, 'N'}; fc4/{1, 'N'}; k1; k2; k3; k4];
     end
 end

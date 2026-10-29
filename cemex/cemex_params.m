@@ -26,6 +26,8 @@ function P = cemex_params(opts)
 %   soh:          battery capacity retention (default 1 = beginning of life; 0.70 = end of life, Voltify RFI response
 %                 3-Battery degradation: 8000 cycles to 70 %). BMS current limits stay at the beginning-of-life amps.
 %   r_age:        cell resistance multiplier (default 1; 1.5 assumed at end of life, not a Jinko figure)
+%   slip:         struct of P.slip overrides (wheel slip model, loco_system_params). model 1 = wheelset dynamics and
+%                 creep law; mode 0 none | 1 per-axle | 2 common slip/slide control; wt, mu_rail, x_p0, x_p1, f_patch ...
 %
 % Six axles on a four-axle plant: the Simscape plant (loco_system/+locosys) has four axle components. Each one
 % stands for 1.5 traction motors in parallel (k = 6/4) with the same voltage: current, torque, power cap and
@@ -51,6 +53,7 @@ if nargin < 1, opts = struct(); end
 [tms, opts] = take(opts, 'tms', 'cemex');
 [soh, opts] = take(opts, 'soh', 1);
 [r_age, opts] = take(opts, 'r_age', 1);
+[slip, opts] = take(opts, 'slip', struct());
 opts.baseline = 'poc';
 opts.regen = regen;
 opts.motor_cap_kW = motor_cap_kW;
@@ -108,6 +111,10 @@ P.lcc.P_db_max = db_kW*1e3;
 P.lcc.k_tb = k_tb;
 P.lcc.soc_reg_max = soc_reg_max;
 P.lcc.soc_reg_band = 0.03;
+% Wheel slip (D2): each modeled axle is 1.5 wheelsets and motors, so its inertia is x k (static load is m_loco/4 already)
+P.slip.J_w = k*P.slip.J_w;
+fs = fieldnames(slip);
+for i = 1:numel(fs), P.slip.(fs{i}) = slip.(fs{i}); end
 
 % ---------------- Cooling (TMS) ----------------
 % The GP40 Rev E system (4 MTMs at 12 kW, one condenser radiator bank UA 2810 W/K with 7 kW EMP fans, one PE
@@ -163,7 +170,7 @@ P.sys.base_rev = 'GP40 proto RevE';
 P.sys.n_axles = 6;
 P.sys.cemex = struct('n_str', n_str, 'E_nom_kWh', soh*E_bol_kWh, 'E_bol_kWh', E_bol_kWh, 'soh', soh, 'r_age', r_age, 'chg_c_rate', chg_c_rate, 'dis_c_rate', dis_c_rate, 'I_dis_max_A', P.lcc.I_dis_max, ...
     'loco_lb', loco_lb, 'motor_cap_kW', motor_cap_kW, 'P_trac_max_MW', P.lcc.P_trac_max/1e6, 'mu_adh', mu_adh, ...
-    'regen', logical(regen), 'chg_P_max_kW', chg_kW, 'wheel_in', wheel_in, 'gear', gear, 'db_kW', db_kW, 'k_tb', k_tb, 'soc_reg_max', soc_reg_max, 'v_mot_max', P.ax.V_mot_max);
+    'regen', logical(regen), 'chg_P_max_kW', chg_kW, 'wheel_in', wheel_in, 'gear', gear, 'db_kW', db_kW, 'k_tb', k_tb, 'soc_reg_max', soc_reg_max, 'v_mot_max', P.ax.V_mot_max, 'slip_model', P.slip.model, 'slip_mode', P.slip.mode);
 end
 
 function [v, s] = take(s, name, default)

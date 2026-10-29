@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 18:31 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-28 21:18 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Route and inputs.** Duty cycle on the Black Mountain Quarry -> Victorville plant run profile (EMD SD40-2, 11.0 mi, 48 min loaded): loaded downhill as run, empty uphill on the same profile reversed, grades -2.71 % to +2.71 %. Loaded train 2,470 t; **assumed:** empty train 740 t (30 % of loaded), locomotive weight 420,000 lb, operating schedule. Re-run `cemex_rfi_report('Rerun', true)` when these are confirmed.
 
@@ -285,6 +285,43 @@ The regear changes little on this route: the duty is adhesion- and power-limited
 | 1,265 V | 45 mph or more | 52,292 | 39,219 | 34,861 of 34,861 |
 
 Voltify's questionnaire answer (B9) describes 1.5 kV power electronics with no high-speed fall-off; that corresponds to the 1,000 V and higher rows here. The motor's voltage rating and the chopper topology (motors in series pairs, or one chopper each) need to be confirmed before the curve is quoted. None of this affects the 20 mph Black Mountain route.
+
+## D2: Individual-axle slip and slide control
+
+For this question the model gives each axle its own wheelset speed. Each wheelset is coupled to the rail through an adhesion-versus-creep curve that peaks at 2 % creep and falls to 60 % of the peak at full spin, the usual shape for steel on steel. Each axle has its own controller. The controller cuts that axle's torque while its creep is above 2 %, then restores the torque over about 2 s. Per-axle control needs one power controller per motor, or per motor pair; the chopper arrangement is still to be confirmed (see D1). Two alternatives are run for comparison:
+
+- **no slip control;**
+- **locomotive-level control:** every axle cut to the factor of the worst axle, as on a locomotive where several motors share one power control.
+
+Three cases, all with the loaded 2,470 t train:
+
+1. **Dry-rail start.** Starting on level track and accelerating to 10 mph. The rail gives 25 % adhesion at the creep peak, and the controller asks for 30 %. As tractive effort builds, weight transfer unloads the lead axle of each truck (lead axle 10 % lighter at full adhesion, assumed).
+2. **Wet patch.** The same start, crossing a 30 m wet patch where adhesion halves. The controller asks for 25 %.
+3. **Regen slide.** Holding 12 mph down the 2.71 % grade on regen, over a 30 m wet patch; electric braking is asked for at 30 % adhesion.
+
+| Case | Control | Time to 10 mph | Mean rail force, lbf (adhesion used) | Peak creep | Time above 10 % creep |
+|---|---|---|---|---|---|
+| 1. Dry-rail start | No slip control | 48 s | 62,629 (60 %) | spin, wheels at 12x train speed | 47.2 s |
+|  | **Per-axle control** | 33 s | 84,906 (81 %) | 22 % | 1.2 s |
+|  | Locomotive-level control | 38 s | 76,700 (73 %) | 19 % | 0.5 s |
+| 2. Wet patch | No slip control | 48 s | 62,836 (60 %) | spin, wheels at 11x train speed | 45.8 s |
+|  | **Per-axle control** | 39 s | 74,068 (71 %) | 19 % | 0.7 s |
+|  | Locomotive-level control | 48 s | 62,841 (60 %) | 21 % | 1.0 s |
+| 3. Regen slide | No slip control | - | 63,001 (60 %) | wheels locked | 229.9 s |
+|  | **Per-axle control** | - | 99,828 (95 %) | 14 % | 0.8 s |
+
+*Mean rail force is taken while accelerating (cases 1-2) or while holding speed on the grade (case 3). Adhesion used is relative to 25 % of the 420,000 lb locomotive weight. Peak creep includes a short spike of under 1 s at starting, before the controller catches it.*
+
+What the runs show:
+
+- **Without slip control, the wheels spin or lock.** In traction, wheel speed reaches about 12 times train speed, and the wheels spend 47 s above 10 % creep. In braking, the wheels lock (100 % creep) for most of the descent and the train air brakes have to hold the train. That means flat spots and rail burns: slip control is not optional.
+- **Per-axle control holds every axle near its own adhesion peak.** On dry rail the locomotive uses 81 % of the available adhesion and reaches 10 mph in 33 s. Locomotive-level control uses 73 % and takes 38 s, because every axle is held back to the lightest (lead) axle.
+- **On the wet patch, only the axle on the patch backs off.** The other axles keep pulling and recover each in turn as the patch passes under them. Mean rail force is 74,068 lbf, against 62,841 lbf when every axle is cut together.
+- **Slide control works the same way under regen.** It holds 99,828 lbf of electric braking, against 63,001 lbf with locked wheels and none. The train air brakes then do less of the work: 42 kWh against 90 kWh over the run.
+
+![D2 slip control](fig_D2_slip_control.png)
+
+Limitations: the creep curve, weight transfer and controller gains are generic, not measured on CEMEX rail. The modeled controller is deliberately simple. It cuts torque and recovers in cycles of about 1 Hz on the wet patch (see the creep trace), so a production creep controller should do at least as well. The model has four axle units, each one 1.5 motors, so "per axle" here means per axle unit of 1.5 motors; the locomotive needs one controller per motor, or per motor pair, to match this. Dynamic-brake grid effort is applied directly at the rail in the model, so the slide case covers regen braking only. Final evidence for D2 is a slip/slide test on the locomotive (sanding off, wet rail), which the model can be fitted to.
 
 ## D3: Brake blending
 
@@ -589,7 +626,6 @@ Locomotive noise needs a fan and blower acoustic estimate or a measurement.
 
 The model can't answer these RFI questions:
 
-- **D2:** individual-axle slip and slide control evidence.
 - **G5 (non-thermal parts):** noise, waste, hazardous materials, battery handling (documents; see G5).
 - **A, B1/B3/B4, E5-E8, F1/F4-F6, G-J:** documentation and commercial items, not simulation.
 
@@ -597,7 +633,7 @@ The model can't answer these RFI questions:
 
 The answer pack is written to `cemex/rfi_out/`:
 
-- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`, `G5_*.csv`
+- per-question CSVs: `C1_*.csv`, `C2_C5_E2_*.csv`, `C3_*.csv`, `C4_*.csv`, `C7_*.csv`, `D1_*.csv`, `D2_*.csv`, `D4_*.csv`, `D6_*.csv`, `E3_*.csv`, `E4_*.csv`, `F2_*.csv`, `G5_*.csv`
 - figures: `fig_*.png`
 - cached simulations: `rfi_sims.mat`
 
