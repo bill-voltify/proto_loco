@@ -106,6 +106,25 @@ if need('WT')
     save(cache, 'SIM');
 end
 
+% Closing the SD60 gap (D1): 77:17 regear on the route
+if need('MOT')
+    fprintf('Regear runs (77:17)...\n');
+    MT = struct();
+    R = run_cemex([], 'Gear', 77/17, 'Plot', false, 'Silent', true);
+    MT.shift = keep(R, 'Base shift, 77:17');
+    if cyc.is_profile
+        T = load_profile_trace(cyc.route, 'Tons', CO.LoadedTons, 'Ambient_C', CO.Ambient_C);
+        R = run_cemex(T, 'Gear', 77/17, 'soc0', 0.60, 'Plot', false, 'Silent', true);
+        MT.desc = keep(R, 'Loaded descent, 60 % SOC, 77:17');
+    end
+    rows_ = [0 0; 60 0; 61 20; 61 + 1800 20];
+    T = mk_trace(rows_(:,1), rows_(:,2), crit_up_empty, CO.EmptyTons, 0, CO.Ambient_C);
+    R = run_cemex(T, 'Gear', 77/17, 'Plot', false, 'Silent', true);
+    MT.acc = keep(R, sprintf('Empty, %.2f %%, 77:17', crit_up_empty)); MT.acc.t_go = 60;
+    SIM.MOT = MT;
+    save(cache, 'SIM');
+end
+
 if need('C3')
     fprintf('Acceleration runs...\n');
     runs = {
@@ -433,6 +452,34 @@ for k = 1:numel(WT.w)
 end
 writetable(wtT, fullfile(o.Out, 'B2_C7_weight_sweep.csv'));
 
+% Closing the SD60 gap: motor thermal limit, current needed, regear on the route, motor voltage sweep
+kk = 6/4; thp = P.th;
+Iss = @(Ta) sqrt((180 - Ta)*thp.UA_mot/thp.R_m)/kk;              % per-motor current that settles at 180 C
+tau_mot_min = thp.C_mot/thp.UA_mot/60;
+I_need = struct();
+for gname = ["g62", "g77"]
+    Pg = P; if gname == "g77", Pg.ax.G = 77/17; end
+    In = NaN;
+    for Im = 1000:5:2000
+        Pg.ax.I_cont = kk*Im;
+        if cemex_capability(Pg, 10, 'Mode', 'cont')/lbf >= 98000 - 1, In = Im; break; end   % SD60 curve at 10 mph
+    end
+    I_need.(gname) = In;
+end
+MT = SIM.MOT;
+acc77 = MT.acc; k0 = acc77.t >= acc77.t_go; tt = acc77.t(k0) - acc77.t_go; vv = acc77.v(k0);
+acc77_t15 = tt(find(vv >= 14.95, 1)); acc77_bal = mean(vv(tt > tt(end) - 120));
+VS = [750 1000 0.95*416*3.2];
+vsT = table();
+for Vm = VS
+    Pv = P; Pv.ax.V_mot_max = Vm;
+    TEv = cemex_capability(Pv, vgrid, 'Mode', 'start');
+    vfull = vgrid(find(TEv >= P_rail./max(vgrid*mps, 0.1)*0.995, 1, 'last'));
+    vsT = [vsT; table(Vm, vfull, at(TEv, 30)/lbf, at(TEv, 40)/lbf, at(TEv, 45)/lbf, P_rail/(45*mps)/lbf, ...
+        'VariableNames', {'V_mot_max','full_power_to_mph','TE_30mph_lbf','TE_40mph_lbf','TE_45mph_lbf','TE_45mph_full_power_lbf'})]; %#ok<AGROW>
+end
+writetable(vsT, fullfile(o.Out, 'D1_motor_voltage_sweep.csv'));
+
 % ---------------- Figures ----------------
 fig_te(fullfile(o.Out, 'fig_D1_te_vs_speed.png'));
 fig_shift(SH.base, fullfile(o.Out, 'fig_C2_base_shift.png'));
@@ -721,6 +768,39 @@ w('- **Route capability doesn''t depend on it:** across the whole range the empt
 w('- **Heavier brakes more electrically:** on the loaded descent the car air brakes carry %s kWh at %s lb and %s kWh at %s lb, because more locomotive weight means more adhesion for regen.', ...
     th(wtT.desc_air_kWh(1)), th(wtT.loco_lb(1)), th(wtT.desc_air_kWh(end)), th(wtT.loco_lb(end)));
 w('- **Axle load:** the base case is %s lb per axle. The 9.4 MWh build (%s lb per axle) would need track and bridge clearance.', th(wtT.axle_lb(3)), th(wtT.axle_lb(4)));
+w('');
+
+w('## Closing the gap to the SD60 (D1)');
+w('');
+w('The battery locomotive''s continuous tractive effort below about %.0f mph is set by the D77 continuous current (1,050 A per motor). Three levers, and what each does:', vx(1));
+w('');
+w('**1. Motor cooling: the continuous current.** The motor thermal model settles at 180 °C at %s A per motor at 40 °C (%s A at 46 °C), which reproduces the D77 continuous rating. Matching the SD60''s %s lbf at 10 mph needs about **%s A per motor at 62:15**, or **%s A at 77:17**. That means about %.0f %% or %.0f %% more blower cooling (heat removed per kelvin rises with the square of the current), plus the motor supplier''s agreement to a higher continuous rating.', ...
+    th(Iss(40)), th(Iss(46)), th(98000), th(I_need.g62), th(I_need.g77), 100*((I_need.g62/1050)^2 - 1), 100*((I_need.g77/1050)^2 - 1));
+w('');
+w('**On this route the continuous rating barely matters.** The motor''s thermal time constant is %.0f minutes, and the steepest climb (%.2f %% for %.1f mi, empty train) takes only minutes. The base shift peaks at %.0f °C motor temperature, against 180 °C.', ...
+    tau_mot_min, crit_up_empty, cyc.crit_up_empty_mi, B.Tmotor_max_C);
+w('');
+w('**2. Regear to 77:17.** This raises continuous TE by 9.6 %% (to %s lbf) at the cost of top speed. On the route:', th(at(TEc77, 5)/lbf));
+w('');
+rows = {
+    'Shift: battery out / regen, kWh', sprintf('%s / %s', th(B.bat_out_kWh), th(B.regen_in_kWh)), sprintf('%s / %s', th(MT.shift.C.bat_out_kWh), th(MT.shift.C.bat_in_regen_kWh))
+    'Shift: max motor temperature, °C', sprintf('%.0f', B.Tmotor_max_C), sprintf('%.0f', MT.shift.M.Tmotor_max)
+    'Shift: worst speed shortfall, mph', sprintf('%.1f', B.shortfall_mph), sprintf('%.1f', MT.shift.C.speed_shortfall_max_mph)
+    sprintf('Empty train on %.2f %%: 0-15 mph, s', crit_up_empty), sprintf('%.0f', acc.t_15mph_s(4)), sprintf('%.0f', acc77_t15)
+    'Loaded descent (60 % SOC): regen / train air, kWh', sprintf('%s / %s', th(dsT.regen_kWh(1)), th(dsT.train_air_kWh(1))), sprintf('%s / %s', th(MT.desc.C.bat_in_regen_kWh), th(MT.desc.C.train_air_kWh))
+    };
+tbl({'', '62:15 (as modeled)', '77:17'}, rows);
+w('The regear changes little on this route: the duty is adhesion- and power-limited, not current-limited. It earns its place only if the reference comparison at 5-10 mph matters to CEMEX.');
+w('');
+w('**3. Motor voltage: the high-speed fall-off.** The model inherits the GP40 prototype''s 750 V armature limit per motor. The CEMEX pack is %s V nominal, so a chopper and motor arrangement that uses more of the bus voltage keeps full power to higher speed:', th(416*3.2));
+w('');
+rows = {};
+for i = 1:height(vsT)
+    r = vsT(i, :);
+    rows(end+1, :) = {sprintf('%s V', th(r.V_mot_max)), iff(r.full_power_to_mph >= vgrid(end), sprintf('%.0f mph or more', vgrid(end)), sprintf('%.0f mph', r.full_power_to_mph)), th(r.TE_30mph_lbf), th(r.TE_40mph_lbf), sprintf('%s of %s', th(r.TE_45mph_lbf), th(r.TE_45mph_full_power_lbf))}; %#ok<AGROW>
+end
+tbl({'Armature limit per motor', 'Full power up to', 'TE at 30 mph, lbf', 'TE at 40 mph, lbf', 'TE at 45 mph vs full power, lbf'}, rows);
+w('Voltify''s questionnaire answer (B9) describes 1.5 kV power electronics with no high-speed fall-off; that corresponds to the 1,000 V and higher rows here. The motor''s voltage rating and the chopper topology (motors in series pairs, or one chopper each) need to be confirmed before the curve is quoted. None of this affects the 20 mph Black Mountain route.');
 w('');
 
 w('## D3: Brake blending');

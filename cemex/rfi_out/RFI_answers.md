@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 18:06 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-28 18:13 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Route and inputs.** Duty cycle on the Black Mountain Quarry -> Victorville plant run profile (EMD SD40-2, 11.0 mi, 48 min loaded): loaded downhill as run, empty uphill on the same profile reversed, grades -2.71 % to +2.71 %. Loaded train 2,470 t; **assumed:** empty train 740 t (30 % of loaded), locomotive weight 420,000 lb, operating schedule. Re-run `cemex_rfi_report('Rerun', true)` when these are confirmed.
 
@@ -231,6 +231,36 @@ Weight sets adhesion, so it sets starting tractive effort and how much braking t
 - **Route capability doesn't depend on it:** across the whole range the empty train restarts on more than 4.8 % (route climb 2.71 %), and every shift completes with the same energy (2,194-2,285 kWh out).
 - **Heavier brakes more electrically:** on the loaded descent the car air brakes carry 134 kWh at 368,000 lb and 59 kWh at 450,700 lb, because more locomotive weight means more adhesion for regen.
 - **Axle load:** the base case is 70,000 lb per axle. The 9.4 MWh build (75,117 lb per axle) would need track and bridge clearance.
+
+## Closing the gap to the SD60 (D1)
+
+The battery locomotive's continuous tractive effort below about 12 mph is set by the D77 continuous current (1,050 A per motor). Three levers, and what each does:
+
+**1. Motor cooling: the continuous current.** The motor thermal model settles at 180 °C at 1,051 A per motor at 40 °C (1,028 A at 46 °C), which reproduces the D77 continuous rating. Matching the SD60's 98,000 lbf at 10 mph needs about **1,210 A per motor at 62:15**, or **1,125 A at 77:17**. That means about 33 % or 15 % more blower cooling (heat removed per kelvin rises with the square of the current), plus the motor supplier's agreement to a higher continuous rating.
+
+**On this route the continuous rating barely matters.** The motor's thermal time constant is 91 minutes, and the steepest climb (2.71 % for 2.0 mi, empty train) takes only minutes. The base shift peaks at 78 °C motor temperature, against 180 °C.
+
+**2. Regear to 77:17.** This raises continuous TE by 9.6 % (to 90,460 lbf) at the cost of top speed. On the route:
+
+|  | 62:15 (as modeled) | 77:17 |
+|---|---|---|
+| Shift: battery out / regen, kWh | 2,251 / 2,483 | 2,235 / 2,481 |
+| Shift: max motor temperature, °C | 78 | 72 |
+| Shift: worst speed shortfall, mph | 0.6 | 0.6 |
+| Empty train on 2.71 %: 0-15 mph, s | 30 | 30 |
+| Loaded descent (60 % SOC): regen / train air, kWh | 1,001 / 86 | 1,015 / 86 |
+
+The regear changes little on this route: the duty is adhesion- and power-limited, not current-limited. It earns its place only if the reference comparison at 5-10 mph matters to CEMEX.
+
+**3. Motor voltage: the high-speed fall-off.** The model inherits the GP40 prototype's 750 V armature limit per motor. The CEMEX pack is 1,331 V nominal, so a chopper and motor arrangement that uses more of the bus voltage keeps full power to higher speed:
+
+| Armature limit per motor | Full power up to | TE at 30 mph, lbf | TE at 40 mph, lbf | TE at 45 mph vs full power, lbf |
+|---|---|---|---|---|
+| 750 V | 30 mph | 49,473 | 18,438 | 12,990 of 34,861 |
+| 1,000 V | 44 mph | 52,292 | 39,219 | 32,585 of 34,861 |
+| 1,265 V | 45 mph or more | 52,292 | 39,219 | 34,861 of 34,861 |
+
+Voltify's questionnaire answer (B9) describes 1.5 kV power electronics with no high-speed fall-off; that corresponds to the 1,000 V and higher rows here. The motor's voltage rating and the chopper topology (motors in series pairs, or one chopper each) need to be confirmed before the curve is quoted. None of this affects the 20 mph Black Mountain route.
 
 ## D3: Brake blending
 
