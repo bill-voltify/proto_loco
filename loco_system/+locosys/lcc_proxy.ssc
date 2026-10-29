@@ -2,6 +2,12 @@ component lcc_proxy
 % Locomotive control proxy: speed PI (gains scheduled on train mass), traction/regen limits,
 % axle cut-out (n_ax_on), string loss (n_str), traction permit from the state manager,
 % park / anti-rollback brake.
+% Brake blending (2026-10-29, CEMEX): braking demand D = max(-TE_raw, 0) is met in order by
+%   1. regen (to the battery): TE_reg_lim, tapered to 0 as SOC goes from soc_reg_max - soc_reg_band to soc_reg_max
+%   2. dynamic-brake grids: P_db_max/|v|, faded below v_db_blend, so regen + grids <= adhesion
+%   3. train air brakes on the trailing cars: up to k_tb*m_trail*g (demand beyond the locomotive)
+%   4. locomotive friction: the rest, with the locomotive total (regen + grids + friction) <= adhesion
+% Defaults (P_db_max 0, k_tb 0, soc_reg_max 2) remove steps 2-3 and the taper: identical to the Rev E proxy.
     inputs
         v_ref = {0, 'm/s'};
         v = {0, 'm/s'};
@@ -12,11 +18,14 @@ component lcc_proxy
         trac = {1, '1'};
         n_ax_on = {4, '1'};
         n_str = {12, '1'};
+        soc = {0.5, '1'};
     end
     outputs
         TE_ax = {0, 'N'};
         TE_ax4 = {0, 'N'};
         F_fric = {0, 'N'};
+        F_db = {0, 'N'};
+        F_tb = {0, 'N'};
     end
     parameters
         m_loco = {122470, 'kg'};
@@ -37,6 +46,11 @@ component lcc_proxy
         v_rb = {0.1, 'm/s'};
         T_aw = {2, 's'};
         g = {9.81, 'm/s^2'};
+        soc_reg_max = {2, '1'};       % regen fully off at this SOC (2 = never)
+        soc_reg_band = {0.02, '1'};   % taper width below soc_reg_max
+        P_db_max = {0, 'W'};          % dynamic-brake grid rating at the wheel (0 = no grids)
+        v_db_blend = {2.2, 'm/s'};    % grid effort fades linearly below this speed
+        k_tb = {0, '1'};              % train air brake capacity, fraction of trailing weight (0 = none)
     end
     variables
         xi = {0, 'N'};
@@ -56,18 +70,28 @@ component lcc_proxy
             vabs = max(abs(v), v_floor);
             P_dis = trac*min(P_trac_max*nax/N_ax, I_dis_max*fstr*k_dis*Vbat*eta_drv);
             P_reg = min(P_trac_max*nax/N_ax, I_chg_max*fstr*k_chg*Vbat/eta_drv);
+            k_soc = min(max((soc_reg_max - soc)/soc_reg_band, 0), 1);
             TE_mot_lim = min(TE_adh, P_dis/vabs);
-            TE_reg_lim = min(TE_adh, P_reg/vabs)*min(abs(v)/v_blend, 1);
+            TE_reg_lim = min(TE_adh, P_reg/vabs)*min(abs(v)/v_blend, 1)*k_soc;
             TE_cmd = min(max(TE_raw, -TE_adh), TE_mot_lim);
-            TE_el = max(TE_cmd, -TE_reg_lim);
+            TE_trac = max(TE_cmd, {0, 'N'});
+            D = max(-TE_raw, {0, 'N'});
+            B_reg = min(D, TE_reg_lim);
+            B_db = min(D - B_reg, max(min(P_db_max/vabs*min(abs(v)/v_db_blend, 1), TE_adh - B_reg), {0, 'N'}));
+            B_tb = min(D - B_reg - B_db, k_tb*mt*g);
+            B_lf = min(D - B_reg - B_db - B_tb, TE_adh - B_reg - B_db);
+            TE_el = TE_trac - B_reg;
+            TE_app = TE_trac - B_reg - B_db - B_tb - B_lf;
             F_park = mu_park*m_tot*g;
             F_hold = if v_ref < {0.01, 'm/s'}, F_park else F_park*min(max(-v/v_rb, 0), 1) end;
             TE_each = TE_el/max(nax, 1);
         in
-            der(xi) == if v_ref < {0.01, 'm/s'}, -xi/{1, 's'} else Ki_v*e + (TE_cmd - TE_raw)/T_aw end;
+            der(xi) == if v_ref < {0.01, 'm/s'}, -xi/{1, 's'} else Ki_v*e + (TE_app - TE_raw)/T_aw end;
             TE_ax == TE_each;
             TE_ax4 == TE_each*min(max(nax - 3, 0), 1);
-            F_fric == TE_el - TE_cmd + F_hold;
+            F_fric == B_db + B_tb + B_lf + F_hold;
+            F_db == B_db;
+            F_tb == B_tb;
         end
     end
 end

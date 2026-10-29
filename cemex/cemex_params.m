@@ -14,6 +14,10 @@ function P = cemex_params(opts)
 %   motor_cap_kW: per-motor power cap, kW (default 536 = D77 FRA rating -> 3.2 MW; 655 = chopper rating -> 3.9 MW)
 %   mu_adh:       adhesion coefficient (default 0.25 dry; RFI C6 asks for wet / low adhesion, try 0.18)
 %   gear:         D77 gear ratio (default 62/15, SD40-2 / GP40; 77/17 = SD60-style low-speed gearing, +9.6 % TE)
+%   db_kW:        dynamic-brake grid rating at the wheel, kW ([] = traction cap, "full dynamic braking"; 0 = no grids)
+%   k_tb:         train air brake capacity, fraction of trailing weight (default 0.03: ~8-10 % net braking ratio x
+%                 ~0.3 shoe friction on loaded cars, ASSUMED until CEMEX car data); used only beyond locomotive grip
+%   soc_reg_max:  regen tapers to zero between soc_reg_max - 0.03 and soc_reg_max (default 0.95 = charger stop)
 %   regen:        true (default; RFI 5-Regenerative Braking requires regen to the battery)
 %   chg_P_max_kW: wayside charger cap, kW (default 3000 = Voltify manual charger, RFI B10)
 %   tms:          cooling system: 'cemex' (default, sized below) | 'gp40' (unchanged GP40 Rev E system) | struct with
@@ -39,6 +43,9 @@ if nargin < 1, opts = struct(); end
 [chg_kW, opts] = take(opts, 'chg_P_max_kW', 3000);
 [wheel_in, opts] = take(opts, 'wheel_in', 40);
 [gear, opts] = take(opts, 'gear', 62/15);
+[db_kW, opts] = take(opts, 'db_kW', []);
+[k_tb, opts] = take(opts, 'k_tb', 0.03);
+[soc_reg_max, opts] = take(opts, 'soc_reg_max', 0.95);
 [tms, opts] = take(opts, 'tms', 'cemex');
 [soh, opts] = take(opts, 'soh', 1);
 [r_age, opts] = take(opts, 'r_age', 1);
@@ -92,6 +99,12 @@ P.th.UA_mot = k*P.th.UA_mot;
 P.lcc.P_trac_max = 6*motor_cap_kW*1e3;
 P.ax.G = gear;                     % D77 gear ratio (62:15 GP40/SD40-2; 77:17 = SD60-style low-speed gearing)
 P.lcc.mu_adh = mu_adh;
+% Brake blending (lcc_proxy, 2026-10-29): regen -> grids -> train air beyond locomotive grip -> locomotive friction
+if isempty(db_kW), db_kW = P.lcc.P_trac_max/1e3; end
+P.lcc.P_db_max = db_kW*1e3;
+P.lcc.k_tb = k_tb;
+P.lcc.soc_reg_max = soc_reg_max;
+P.lcc.soc_reg_band = 0.03;
 
 % ---------------- Cooling (TMS) ----------------
 % The GP40 Rev E system (4 MTMs at 12 kW, one condenser radiator bank UA 2810 W/K with 7 kW EMP fans, one PE
@@ -147,7 +160,7 @@ P.sys.base_rev = 'GP40 proto RevE';
 P.sys.n_axles = 6;
 P.sys.cemex = struct('n_str', n_str, 'E_nom_kWh', soh*E_bol_kWh, 'E_bol_kWh', E_bol_kWh, 'soh', soh, 'r_age', r_age, 'chg_c_rate', chg_c_rate, 'dis_c_rate', dis_c_rate, 'I_dis_max_A', P.lcc.I_dis_max, ...
     'loco_lb', loco_lb, 'motor_cap_kW', motor_cap_kW, 'P_trac_max_MW', P.lcc.P_trac_max/1e6, 'mu_adh', mu_adh, ...
-    'regen', logical(regen), 'chg_P_max_kW', chg_kW, 'wheel_in', wheel_in, 'gear', gear);
+    'regen', logical(regen), 'chg_P_max_kW', chg_kW, 'wheel_in', wheel_in, 'gear', gear, 'db_kW', db_kW, 'k_tb', k_tb, 'soc_reg_max', soc_reg_max);
 end
 
 function [v, s] = take(s, name, default)

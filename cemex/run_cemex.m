@@ -13,6 +13,8 @@ function RUN = run_cemex(trace, varargin)
 %   ChargerkW     wayside charger cap, kW (3000)            ReserveSOC   required SOC at all times (0.20)
 %   TMS           'cemex' (default) | 'gp40' | struct(n_mtm, k_cd, k_pe), see cemex_params
 %   SOH, RAge     battery capacity retention (1) and resistance multiplier (1); 0.70 / 1.5 = end of life
+%   DbkW, Ktb, SocRegMax  dynamic-brake grid kW ([] = traction cap), train air brake capacity (0.03 x trailing weight),
+%                 regen cut-off SOC (0.95); see cemex_params
 %   T0_C          initial pack temperature, C (25 = preconditioned; [] = soaked at ambient)
 %   Faults, Budget, Ambient_C, AmbientOffset_C, T0_C, soc0, bms, MaxStep, Plot, Build, Silent, RString, ShowWarnings
 % RUN.cemex holds the RFI C5 / D5 metrics: energy per cycle, peak power, min / reserve SOC, regen recovered.
@@ -38,6 +40,9 @@ p.addParameter('T0_C', 25);       % pack held at 25 C while parked (RFI D17); []
 p.addParameter('TMS', 'cemex');
 p.addParameter('SOH', 1);
 p.addParameter('RAge', 1);
+p.addParameter('DbkW', []);
+p.addParameter('Ktb', 0.03);
+p.addParameter('SocRegMax', 0.95);
 p.addParameter('soc0', 0.9);
 p.addParameter('bms', 'jinko');
 p.addParameter('MaxStep', 1);
@@ -65,7 +70,7 @@ ff = o.Faults; if ~istable(ff) && ~isfile(ff), ff = fullfile(base, ff); end
 F = load_fault_table(ff);
 P = cemex_params(struct('T_amb_C', TR.ambient0_C, 'T0_C', o.T0_C, 'soc0', o.soc0, 'bms', o.bms, ...
     'r_string', o.RString, 'n_str', o.Strings, 'chg_c_rate', o.ChgCRate, 'dis_c_rate', o.DisCRate, 'loco_lb', o.LocoLb, ...
-    'motor_cap_kW', o.MotorCapkW, 'mu_adh', o.MuAdh, 'regen', o.Regen, 'chg_P_max_kW', o.ChargerkW, 'tms', o.TMS, 'soh', o.SOH, 'r_age', o.RAge));
+    'motor_cap_kW', o.MotorCapkW, 'mu_adh', o.MuAdh, 'regen', o.Regen, 'chg_P_max_kW', o.ChargerkW, 'tms', o.TMS, 'soh', o.SOH, 'r_age', o.RAge, 'db_kW', o.DbkW, 'k_tb', o.Ktb, 'soc_reg_max', o.SocRegMax));
 FLT = build_fault_matrix(F, TR.t_end, P);
 B = load_budget_table(o.Budget);
 
@@ -116,8 +121,13 @@ C.bat_out_kWh = RUN.energy.bat_out_kWh;
 C.bat_in_regen_kWh = trapz(t, -min(R.p_bat, 0).*~wire)/3.6e6;
 C.bat_in_charger_kWh = trapz(t, -min(R.p_bat, 0).*wire)/3.6e6;
 C.net_bat_kWh = trapz(t, R.p_bat)/3.6e6;
-C.friction_brake_kWh = trapz(t, abs(R.f_fric).*R.v_mph*mps)/3.6e6;
-C.regen_share = C.bat_in_regen_kWh/max(C.bat_in_regen_kWh + C.friction_brake_kWh, eps);
+fdb = zeros(size(t)); ftb = fdb;
+if isfield(R, 'f_db'), fdb = R.f_db; ftb = R.f_tb; end
+C.grid_kWh = trapz(t, abs(fdb).*R.v_mph*mps)/3.6e6;                 % dynamic-brake grids
+C.train_air_kWh = trapz(t, abs(ftb).*R.v_mph*mps)/3.6e6;            % car air brakes
+C.loco_friction_kWh = trapz(t, max(R.f_fric - fdb - ftb, 0).*R.v_mph*mps)/3.6e6;
+C.friction_brake_kWh = C.train_air_kWh + C.loco_friction_kWh;       % all friction (cars + locomotive)
+C.regen_share = C.bat_in_regen_kWh/max(C.bat_in_regen_kWh + C.grid_kWh + C.friction_brake_kWh, eps);
 run_ = t > t(1) + 10;                      % skip DC-link precharge inrush at HV close (t ~ 2 s)
 C.peak_discharge_MW = max(R.p_bat(run_))/1e6;
 tg = (t(1):1:t(end))';
@@ -149,8 +159,8 @@ fprintf('C5  energy: battery out %.0f kWh, regen in %.0f kWh, charger in %.0f kW
     C.bat_out_kWh, C.bat_in_regen_kWh, C.bat_in_charger_kWh, C.net_bat_kWh, C.duration_h);
 fprintf('C5  peak discharge %.2f MW | SOC %.1f%% -> min %.1f%% -> end %.1f%% | reserve %.0f%%: %s\n', ...
     C.peak_discharge_MW, 100*C.soc_start, 100*C.soc_min, 100*C.soc_end, 100*C.reserve_soc, string(C.reserve_ok));
-fprintf('D5  regen recovered %.0f kWh, friction braking %.0f kWh -> %.0f%% of braking energy to the battery (peak regen %.2f MW)\n', ...
-    C.bat_in_regen_kWh, C.friction_brake_kWh, 100*C.regen_share, C.peak_regen_MW);
+fprintf('D5  regen %.0f kWh, grids %.0f kWh, train air %.0f kWh, loco friction %.0f kWh -> %.0f%% of braking energy to the battery (peak regen %.2f MW)\n', ...
+    C.bat_in_regen_kWh, C.grid_kWh, C.train_air_kWh, C.loco_friction_kWh, 100*C.regen_share, C.peak_regen_MW);
 fprintf('C4  peak TE %.0f kN (%.0f klbf) | speed shortfall max %.1f mph, %.0f min > 2 mph below trace\n', ...
     C.peak_TE_kN, C.peak_TE_kN/4.448, C.speed_shortfall_max_mph, C.time_below_ref_2mph_min);
 end

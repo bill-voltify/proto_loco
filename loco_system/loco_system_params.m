@@ -136,6 +136,14 @@ end
 % Setting it to 0 makes TE_el >= 0; lcc_proxy already routes the remaining braking demand to
 % F_fric (friction brake). No rebuild needed: mask parameters are read from P at sim time.
 P.sys.regen = logical(regen);
+% Brake blending (2026-10-29, lcc_proxy): defaults are inert, identical to Rev E. CEMEX sets them in cemex_params.
+%   soc_reg_max/soc_reg_band: regen taper near full SOC (2 = never); P_db_max: dynamic-brake grids, W (0 = none);
+%   v_db_blend: grid fade speed; k_tb: train air brake capacity, fraction of trailing weight (0 = none).
+P.lcc.soc_reg_max = 2;
+P.lcc.soc_reg_band = 0.02;
+P.lcc.P_db_max = 0;
+P.lcc.v_db_blend = 2.2;
+P.lcc.k_tb = 0;
 if ~P.sys.regen
     P.lcc.I_chg_max = 0;
 end
