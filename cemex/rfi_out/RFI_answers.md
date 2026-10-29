@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 16:41 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-28 17:01 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Placeholders, replace before submitting.** CEMEX hasn't provided the Victorville route profile, so the route (9 mi one way, 6 segments, -0.92 % to 1.08 % with curvature), consist (4,000 t loaded, 1,200 t empty) and locomotive weight (420,000 lb) are assumptions. Every number below comes from those inputs. Re-run `cemex_rfi_report('Rerun', true)` once the route arrives.
 
@@ -159,7 +159,7 @@ Rollback is prevented by the park/anti-rollback brake whenever speed is commande
    - dynamic-brake grids
    - regen cut-off at full SOC (the model limits regen on temperature only)
    - battery calendar aging
-6. The cell rating at 0.67C continuous discharge needs Jinko confirmation. Victorville's design ambient is assumed to be 46 °C.
+6. The cell rating at 0.67C continuous discharge needs confirmation from the cell supplier. Victorville's design ambient is assumed to be 46 °C.
 
 ## D1: Tractive effort
 
@@ -289,7 +289,7 @@ Regen braking is continuous: it is set by the battery charge limit and the cooli
 
 | Item | Value |
 |---|---|
-| Chemistry / supplier | LFP, Jinko 314 Ah prismatic cells |
+| Chemistry / supplier | LFP, 314 Ah prismatic cells |
 | Configuration | 14 strings × 416S |
 | Installed capacity | 5,852 kWh |
 | Usable capacity (90 % → 20 % reserve) | 4,096 kWh |
@@ -331,10 +331,10 @@ With plant charging (2000 kW for each 45 min unload dwell) the base shift ends a
 - **Calendar fade** grows with the square root of time. It speeds up with temperature and with high SOC, through the graphite anode potential.
 - **Cycle fade** grows with charge throughput (equivalent full cycles), depth of discharge and C-rate.
 
-**Anchored to the cell.** The cycle term is scaled (×0.82) so the model reproduces the EVE MB31 314 Ah datasheet (PBRI-MB31-D06-01): 8,000 cycles to 70 % at 25 °C, 0.5P/0.5P, 100 % DOD. EVE publishes no calendar-aging curve, so the calendar term is BLAST's, unchanged. Against EVE data not used in the fit:
+**Anchored to the cell.** The cycle term is scaled (×0.82) so the model reproduces the cell manufacturer's 314 Ah datasheet: 8,000 cycles to 70 % at 25 °C, 0.5P/0.5P, 100 % DOD. The datasheet gives no calendar-aging curve, so the calendar term is BLAST's, unchanged. Against manufacturer data not used in the fit:
 
-- **28-day storage at 50 % SOC:** the model keeps 99.7 % at 25 °C and 99.0 % at 45 °C. EVE specifies at least 98 % and 97 % recovery, so the model is consistent.
-- **Cycles to 80 % at 0.5C/0.5C:** the model gives 4,649 at 25 °C and 5,835 at 45 °C. The EVE LF304 (same family, earlier cell) is rated 4,000 and 1,800. The model under-predicts heat damage from cycling at 45 °C. The CEMEX pack runs at 25-28 °C, where the anchor applies; the conservative case below covers the cycle-life uncertainty.
+- **28-day storage at 50 % SOC:** the model keeps 99.7 % at 25 °C and 99.0 % at 45 °C. The datasheet specifies at least 98 % and 97 % recovery, so the model is consistent.
+- **Cycles to 80 % at 0.5C/0.5C:** the model gives 4,649 at 25 °C and 5,835 at 45 °C. An earlier cell from the same manufacturer and family is rated 4,000 and 1,800. The model under-predicts heat damage from cycling at 45 °C. The CEMEX pack runs at 25-28 °C, where the anchor applies; the conservative case below covers the cycle-life uncertainty.
 
 **Duty.** The base shift simulated above, using its SOC and cell temperature second by second. That is 0.45 equivalent full cycles per shift, including the plant charging. Between shifts the pack sits on charge at 95 % SOC, held at 25 °C by the cooling system. **The operating schedule is a placeholder**; CEMEX hasn't given shifts per day or days per year.
 
@@ -344,26 +344,26 @@ With plant charging (2000 kW for each 45 min unload dwell) the base shift ends a
 | 2 shifts/day, 7 days/week | 296 | 92.5 | 88.3 | 84.9 | 81.8 | 23.2 | > 25 | 47 |
 | 1 shift/day, 5 days/week | 108 | 94.7 | 92.0 | 89.8 | 87.9 | > 25 | > 25 | 69 |
 | Hot: cells at 35 °C all the time (no conditioning) | 246 | 90.6 | 85.8 | 82.0 | 78.6 | 17.8 | > 25 | 68 |
-| Conservative cycle life: 4,000 cycles to 80 % (EVE LF304) | 254 | 92.6 | 88.4 | 84.9 | 81.8 | 23.3 | > 25 | 47 |
+| Conservative cycle life: 4,000 cycles to 80 % (earlier cell, same family) | 254 | 92.6 | 88.4 | 84.9 | 81.8 | 23.3 | > 25 | 47 |
 
 ![Degradation](fig_E4_degradation.png)
 
 **What it means for CEMEX**
 
 - **Replacement threshold: 70 % SOH.** E2 shows the base duty cycle still completes with reserve at 70 % capacity (minimum SOC 73.1 %). In the base case the pack reaches 70 % after more than 25 years.
-- **Design life: 20 years**, the Jinko container design life. In the base case, SOH at 20 years is 83 %. The conservative cycle-life case gives 82 %.
+- **Design life: 20 years**, the battery system design life. In the base case, SOH at 20 years is 83 %. The conservative cycle-life case gives 82 %.
 - **Calendar aging is about half the fade.** At 256 full cycles a year, the pack is far from its 8,000-cycle rating. Time, temperature and resting SOC matter as much as use.
 - **Temperature is the biggest lever.** Without conditioning (35 °C) the pack reaches 80 % at 17.8 instead of > 25. That supports the TMS holding the pack at 25 °C while parked.
-- **Proposed warranted retention:** at least 85 % at 10 years. This is the conservative-case value, rounded down 3 points for margin. It is subject to a back-to-back warranty from Jinko/EVE and to the confirmed CEMEX schedule.
+- **Proposed warranted retention:** at least 85 % at 10 years. This is the conservative-case value, rounded down 3 points for margin. It is subject to a back-to-back warranty from the battery supplier and to the confirmed CEMEX schedule.
 
 Limits:
 
 - capacity only; resistance growth is assumed at 1.5× at end of life (E2) and not modeled
 - BLAST fit range 10-45 °C, charge rate up to 0.65C (the regen and charge limit is 0.5C, inside the range)
 - placeholder route and schedule
-- the EVE MB31 datasheet copy is from a distributor; confirm the revision with EVE
+- the cell datasheet revision is still to be confirmed with the manufacturer
 
-To make E4 a warranted figure, we need from EVE/Jinko:
+To make E4 a warranted figure, we need from the battery supplier:
 
 - calendar aging at 25, 35 and 45 °C and at several SOCs
 - cycle life at 35-45 °C
@@ -452,10 +452,10 @@ A fan or blower failure moves heat into the remaining paths and raises temperatu
 
 **The rest of G5 comes from documents, not the model:** noise, waste, hazardous materials and battery handling. Sources on Drive (not reviewed here):
 
-- *Jinko Batteries SDS*
-- *Jinko Batteries Hazard Mitigation Analysis*
-- *Jinko Fire Suppression Doc*
-- *Jinko 5MWh liquid-cooled ESS User Manual*, which gives ≤ 80 dB(A) at 1 m for the stationary container, not the locomotive
+- battery Safety Data Sheet (SDS)
+- battery system hazard mitigation analysis
+- fire suppression documentation
+- battery system user manual, which gives ≤ 80 dB(A) at 1 m for the stationary container, not the locomotive
 
 Locomotive noise needs a fan and blower acoustic estimate or a measurement.
 

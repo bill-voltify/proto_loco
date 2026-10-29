@@ -345,7 +345,7 @@ deg_cases = {
     '2 shifts/day, 7 days/week',                                   {'DaysPerWeek', 7}
     '1 shift/day, 5 days/week',                                    {'ShiftsPerDay', 1, 'DaysPerWeek', 5}
     'Hot: cells at 35 °C all the time (no conditioning)',          {'ParkT_C', 35, 'ShiftT_C', 35}
-    'Conservative cycle life: 4,000 cycles to 80 % (EVE LF304)',   {'Anchor', struct('cycles', 4000, 'soh', 0.80, 'T_C', 25, 'crate', 0.5)}
+    'Conservative cycle life: 4,000 cycles to 80 % (earlier cell, same family)',   {'Anchor', struct('cycles', 4000, 'soh', 0.80, 'T_C', 25, 'crate', 0.5)}
     };
 DG = cell(size(deg_cases, 1), 1);
 degT = table();
@@ -548,7 +548,7 @@ w('   - individual-axle slip control (the model uses one adhesion value)');
 w('   - dynamic-brake grids');
 w('   - regen cut-off at full SOC (the model limits regen on temperature only)');
 w('   - battery calendar aging');
-w('6. The cell rating at 0.67C continuous discharge needs Jinko confirmation. Victorville''s design ambient is assumed to be 46 °C.');
+w('6. The cell rating at 0.67C continuous discharge needs confirmation from the cell supplier. Victorville''s design ambient is assumed to be 46 °C.');
 w('');
 
 w('## D1: Tractive effort');
@@ -677,7 +677,7 @@ w('');
 w('## E1: Battery');
 w('');
 tbl({'Item', 'Value'}, {
-    'Chemistry / supplier', 'LFP, Jinko 314 Ah prismatic cells'
+    'Chemistry / supplier', 'LFP, 314 Ah prismatic cells'
     'Configuration', sprintf('%d strings × 416S', c.n_str)
     'Installed capacity', sprintf('%s kWh', th(c.E_bol_kWh))
     'Usable capacity (90 % → 20 % reserve)', sprintf('%s kWh', th(0.70*c.E_bol_kWh))
@@ -721,10 +721,10 @@ w('');
 w('- **Calendar fade** grows with the square root of time. It speeds up with temperature and with high SOC, through the graphite anode potential.');
 w('- **Cycle fade** grows with charge throughput (equivalent full cycles), depth of discharge and C-rate.');
 w('');
-w('**Anchored to the cell.** The cycle term is scaled (×%.2f) so the model reproduces the EVE MB31 314 Ah datasheet (PBRI-MB31-D06-01): 8,000 cycles to 70 %% at 25 °C, 0.5P/0.5P, 100 %% DOD. EVE publishes no calendar-aging curve, so the calendar term is BLAST''s, unchanged. Against EVE data not used in the fit:', d1.cycle_scale);
+w('**Anchored to the cell.** The cycle term is scaled (×%.2f) so the model reproduces the cell manufacturer''s 314 Ah datasheet: 8,000 cycles to 70 %% at 25 °C, 0.5P/0.5P, 100 %% DOD. The datasheet gives no calendar-aging curve, so the calendar term is BLAST''s, unchanged. Against manufacturer data not used in the fit:', d1.cycle_scale);
 w('');
-w('- **28-day storage at 50 %% SOC:** the model keeps %.1f %% at 25 °C and %.1f %% at 45 °C. EVE specifies at least 98 %% and 97 %% recovery, so the model is consistent.', 100*DGc.storage_28d_25C(end), 100*DGc.storage_28d_45C(end));
-w('- **Cycles to 80 %% at 0.5C/0.5C:** the model gives %s at 25 °C and %s at 45 °C. The EVE LF304 (same family, earlier cell) is rated 4,000 and 1,800. The model under-predicts heat damage from cycling at 45 °C. The CEMEX pack runs at 25-28 °C, where the anchor applies; the conservative case below covers the cycle-life uncertainty.', th(DGc.cycles80_25C), th(DGc.cycles80_45C));
+w('- **28-day storage at 50 %% SOC:** the model keeps %.1f %% at 25 °C and %.1f %% at 45 °C. The datasheet specifies at least 98 %% and 97 %% recovery, so the model is consistent.', 100*DGc.storage_28d_25C(end), 100*DGc.storage_28d_45C(end));
+w('- **Cycles to 80 %% at 0.5C/0.5C:** the model gives %s at 25 °C and %s at 45 °C. An earlier cell from the same manufacturer and family is rated 4,000 and 1,800. The model under-predicts heat damage from cycling at 45 °C. The CEMEX pack runs at 25-28 °C, where the anchor applies; the conservative case below covers the cycle-life uncertainty.', th(DGc.cycles80_25C), th(DGc.cycles80_45C));
 w('');
 w('**Duty.** The base shift simulated above, using its SOC and cell temperature second by second. That is %.2f equivalent full cycles per shift, including the plant charging. Between shifts the pack sits on charge at %.0f %% SOC, held at 25 °C by the cooling system. **The operating schedule is a placeholder**; CEMEX hasn''t given shifts per day or days per year.', d1.shift_efc, 100*d1.park_soc);
 w('');
@@ -740,19 +740,19 @@ w('');
 w('**What it means for CEMEX**');
 w('');
 w('- **Replacement threshold: 70 %% SOH.** E2 shows the base duty cycle still completes with reserve at 70 %% capacity (minimum SOC %.1f %%). In the base case the pack reaches 70 %% %s.', E.soc_min_pct, iff(isinf(d1.years_to_70), 'after more than 25 years', sprintf('after %.1f years', d1.years_to_70)));
-w('- **Design life: 20 years**, the Jinko container design life. In the base case, SOH at 20 years is %.0f %%. The conservative cycle-life case gives %.0f %%.', 100*d1.soh_at(4), degT.soh_20y(end));
+w('- **Design life: 20 years**, the battery system design life. In the base case, SOH at 20 years is %.0f %%. The conservative cycle-life case gives %.0f %%.', 100*d1.soh_at(4), degT.soh_20y(end));
 w('- **Calendar aging is about half the fade.** At %s full cycles a year, the pack is far from its 8,000-cycle rating. Time, temperature and resting SOC matter as much as use.', th(d1.efc_per_year));
 w('- **Temperature is the biggest lever.** Without conditioning (35 °C) the pack reaches 80 %% at %s instead of %s. That supports the TMS holding the pack at 25 °C while parked.', yr(degT.years_to_80(4)), yr(degT.years_to_80(1)));
-w('- **Proposed warranted retention:** at least %.0f %% at 10 years. This is the conservative-case value, rounded down %.0f points for margin. It is subject to a back-to-back warranty from Jinko/EVE and to the confirmed CEMEX schedule.', 5*floor((degT.soh_10y(end) - 2)/5), degT.soh_10y(end) - 5*floor((degT.soh_10y(end) - 2)/5));
+w('- **Proposed warranted retention:** at least %.0f %% at 10 years. This is the conservative-case value, rounded down %.0f points for margin. It is subject to a back-to-back warranty from the battery supplier and to the confirmed CEMEX schedule.', 5*floor((degT.soh_10y(end) - 2)/5), degT.soh_10y(end) - 5*floor((degT.soh_10y(end) - 2)/5));
 w('');
 w('Limits:');
 w('');
 w('- capacity only; resistance growth is assumed at 1.5× at end of life (E2) and not modeled');
 w('- BLAST fit range 10-45 °C, charge rate up to 0.65C (the regen and charge limit is 0.5C, inside the range)');
 w('- placeholder route and schedule');
-w('- the EVE MB31 datasheet copy is from a distributor; confirm the revision with EVE');
+w('- the cell datasheet revision is still to be confirmed with the manufacturer');
 w('');
-w('To make E4 a warranted figure, we need from EVE/Jinko:');
+w('To make E4 a warranted figure, we need from the battery supplier:');
 w('');
 w('- calendar aging at 25, 35 and 45 °C and at several SOCs');
 w('- cycle life at 35-45 °C');
@@ -851,10 +851,10 @@ w('- thermal-runaway heat release, which belongs to the battery safety case, not
 w('');
 w('**The rest of G5 comes from documents, not the model:** noise, waste, hazardous materials and battery handling. Sources on Drive (not reviewed here):');
 w('');
-w('- *Jinko Batteries SDS*');
-w('- *Jinko Batteries Hazard Mitigation Analysis*');
-w('- *Jinko Fire Suppression Doc*');
-w('- *Jinko 5MWh liquid-cooled ESS User Manual*, which gives ≤ 80 dB(A) at 1 m for the stationary container, not the locomotive');
+w('- battery Safety Data Sheet (SDS)');
+w('- battery system hazard mitigation analysis');
+w('- fire suppression documentation');
+w('- battery system user manual, which gives ≤ 80 dB(A) at 1 m for the stationary container, not the locomotive');
 w('');
 w('Locomotive noise needs a fan and blower acoustic estimate or a measurement.');
 w('');
@@ -1015,7 +1015,7 @@ S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st
         yline(80, 'k--', '80 %', 'HandleVisibility', 'off');
         yline(70, 'r--', '70 % replacement threshold', 'HandleVisibility', 'off');
         xlabel('years in service'); ylabel('capacity (SOH) %'); ylim([60 100]); xlim([0 25]);
-        title('Battery capacity fade: BLAST-Lite LFP prismatic, cycle term anchored to EVE MB31 (8,000 cycles to 70 %)');
+        title('Battery capacity fade: BLAST-Lite LFP prismatic, cycle term anchored to the cell datasheet (8,000 cycles to 70 %)');
         legend('Location', 'southwest');
         exportgraphics(f, fn, 'Resolution', 150); close(f);
     end
