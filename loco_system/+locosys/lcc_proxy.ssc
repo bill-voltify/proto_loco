@@ -40,6 +40,7 @@ component lcc_proxy
         I_dis_max = {1884, 'A'};
         I_chg_max = {1884, 'A'};
         eta_drv = {0.88, '1'};
+        eta_reg = {0.88, '1'};        % drivetrain efficiency used to size the regen limit (battery side)
         v_floor = {0.5, 'm/s'};
         v_blend = {1.5, 'm/s'};
         mu_park = {0.1, '1'};
@@ -69,7 +70,7 @@ component lcc_proxy
             TE_raw = Kp_v*e + xi;
             vabs = max(abs(v), v_floor);
             P_dis = trac*min(P_trac_max*nax/N_ax, I_dis_max*fstr*k_dis*Vbat*eta_drv);
-            P_reg = min(P_trac_max*nax/N_ax, I_chg_max*fstr*k_chg*Vbat/eta_drv);
+            P_reg = min(P_trac_max*nax/N_ax, I_chg_max*fstr*k_chg*Vbat/eta_reg);
             k_soc = min(max((soc_reg_max - soc)/soc_reg_band, 0), 1);
             TE_mot_lim = min(TE_adh, P_dis/vabs);
             TE_reg_lim = min(TE_adh, P_reg/vabs)*min(abs(v)/v_blend, 1)*k_soc;

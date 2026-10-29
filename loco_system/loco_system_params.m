@@ -144,6 +144,7 @@ P.lcc.soc_reg_band = 0.02;
 P.lcc.P_db_max = 0;
 P.lcc.v_db_blend = 2.2;
 P.lcc.k_tb = 0;
+P.lcc.eta_reg = P.lcc.eta_drv;   % regen-limit efficiency (lcc_proxy P_reg); default = eta_drv, identical to Rev E
 if ~P.sys.regen
     P.lcc.I_chg_max = 0;
 end

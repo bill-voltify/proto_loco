@@ -1,5 +1,5 @@
-case,description,kWh_per_round_trip,soc_pct_per_trip,trips_90_to_20,whole_trips,hours_90_to_20,E_nom_kWh
-r_bol40,"No charging, 3 trips, 40 C, new battery",705.49992476451,12.055798458001,5.80633462344781,5,18.6107022157286,5851.9552
-r_bol46,"No charging, 3 trips, 46 C, new battery",724.43469459847,12.3793615952232,5.65457269032439,5,18.1242698142691,5851.9552
-r_eol40,"No charging, 3 trips, 40 C, end of life",710.840245114665,17.3529364074681,4.03389941369661,4,12.9296081651222,4096.36864
-r_eol46,"No charging, 3 trips, 46 C, end of life",735.001430206193,17.9427560066028,3.90129587529589,3,12.5046073043889,4096.36864
+case,description,kWh_per_round_trip,soc_pct_per_trip,trips_90_to_20,whole_trips,hours_90_to_20,E_nom_kWh,max_dip_pct,min_start_soc_pct
+r_bol40,"No charging, 3 trips, 40 C, new battery",-93.0271798689133,-1.5896768975421,Inf,Inf,Inf,5851.9552,12.4508018407688,32.4508018407688
+r_bol46,"No charging, 3 trips, 46 C, new battery",-92.9406914778109,-1.58819895746657,Inf,Inf,Inf,5851.9552,12.658743983345,32.658743983345
+r_eol40,"No charging, 3 trips, 40 C, end of life",-64.6968190997826,-1.57937004174953,Inf,Inf,Inf,4096.36864,17.8773412068534,37.8773412068535
+r_eol46,"No charging, 3 trips, 46 C, end of life",-64.7806628328034,-1.58141682367736,Inf,Inf,Inf,4096.36864,18.2654370438641,38.2654370438641

@@ -26,11 +26,9 @@ mps = 0.44704; tonkg = 907.185; lbf = 4.44822; g = 9.81;
 P = cemex_params();
 [~, cyc] = make_cemex_cycle();
 CO = cyc.options;
-RT = readtable(cyc.route, 'TextType', 'string');
-g_load = RT.grade_pct + 0.04*RT.curve_deg;               % loaded direction, curvature as equivalent grade
-g_empty = -RT.grade_pct + 0.04*RT.curve_deg;             % empty direction
-crit_up_loaded = max(g_load);  crit_up_empty = max(g_empty);
-crit_dn_loaded = min(g_load);  crit_dn_empty = min(g_empty);
+g_all = [cyc.grade_loaded; cyc.grade_empty];            % route grades, both directions (make_cemex_cycle info)
+crit_up_loaded = cyc.crit_up_loaded;  crit_up_empty = cyc.crit_up_empty;
+crit_dn_loaded = cyc.crit_dn_loaded;  crit_dn_empty = cyc.crit_dn_empty;
 consists = [CO.EmptyTons, CO.LoadedTons, 1.25*CO.LoadedTons];
 cnames = ["Empty", "Loaded", "Loaded +25 %"];
 reserve = 0.20;
@@ -91,9 +89,9 @@ if need('C3')
     fprintf('Acceleration runs...\n');
     runs = {
         'loaded_level', 'Loaded, level',                                     CO.LoadedTons, 0
-        'loaded_crit',  sprintf('Loaded, %.2f %% (critical, with curve)', crit_up_loaded), CO.LoadedTons, crit_up_loaded
+        'loaded_crit',  sprintf('Loaded, %.2f %% (steepest climb)', crit_up_loaded), CO.LoadedTons, crit_up_loaded
         'empty_level',  'Empty, level',                                      CO.EmptyTons, 0
-        'empty_crit',   sprintf('Empty, %.2f %% (critical, with curve)', crit_up_empty),   CO.EmptyTons, crit_up_empty
+        'empty_crit',   sprintf('Empty, %.2f %% (steepest climb)', crit_up_empty),   CO.EmptyTons, crit_up_empty
         };
     AC = struct();
     for k = 1:size(runs, 1)
@@ -127,18 +125,28 @@ if need('C7')
 end
 
 if need('D6')
-    fprintf('Long-descent runs...\n');
-    dn = [crit_dn_loaded, -1.2];
-    DS = struct('grade', dn, 'run', {{}});
-    for k = 1:2
-        L_s = 10*1609.344/(20*mps);                     % 10 miles at 20 mph
-        t = [0 60 193 253 254 254 + L_s 255 + L_s 355 + L_s 415 + L_s];
-        v = [0 0 20 20 20 20 20 0 0];
-        gr = [0 0 0 0 dn(k) dn(k) 0 0 0];
-        T = mk_trace(t, v, gr, CO.LoadedTons, 0, CO.Ambient_C);
-        R = run_cemex(T, 'Plot', false, 'Silent', true, 'soc0', 0.60);
-        DS.run{k} = keep(R, sprintf('Loaded, 10 mi at %.2f %%, 20 mph', dn(k)));
-        DS.run{k}.t_grade = [254, 254 + L_s];
+    fprintf('Loaded descent runs (route profile)...\n');
+    % The loaded run as recorded, from three arrival states at the quarry: battery low enough to take the whole
+    % descent, battery near full (regen cut-off -> grids), and near full with no grids (friction only).
+    dcases = {
+        0.60, {},             'Loaded descent, 60 % SOC at the quarry'
+        0.90, {},             'Loaded descent, 90 % SOC at the quarry (regen cut-off at 95 %)'
+        0.90, {'DbkW', 0},    'Loaded descent, 90 % SOC, no dynamic-brake grids'
+        };
+    DS = struct('soc0', [dcases{:, 1}], 'run', {{}});
+    for k = 1:size(dcases, 1)
+        fprintf('  %s\n', dcases{k, 3});
+        if cyc.is_profile
+            T = load_profile_trace(cyc.route, 'Tons', CO.LoadedTons, 'Ambient_C', CO.Ambient_C);
+        else                                            % segment route: 10 miles at the steepest descent, 20 mph
+            L_s = 10*1609.344/(20*mps);
+            T = mk_trace([0 60 193 253 254 254 + L_s 255 + L_s 355 + L_s 415 + L_s], [0 0 20 20 20 20 20 0 0], ...
+                [0 0 0 0 crit_dn_loaded crit_dn_loaded 0 0 0], CO.LoadedTons, 0, CO.Ambient_C);
+        end
+        R = run_cemex(T, 'Plot', false, 'Silent', true, 'soc0', dcases{k, 1}, dcases{k, 2}{:});
+        DS.run{k} = keep(R, dcases{k, 3});
+        mv = find(R.R.v_mph > 0.1);
+        DS.run{k}.t_grade = [R.R.t(mv(1)), R.R.t(mv(end))];
     end
     SIM.D6 = DS;
     save(cache, 'SIM');
@@ -203,7 +211,7 @@ end
 writetable(C1, fullfile(o.Out, 'C1_max_sustained_grade.csv'));
 
 % C4: maximum tonnage
-grades = unique([0 0.5 round(crit_up_loaded, 2) 1.0 1.5 2.0]);
+grades = unique([0 0.5 1.0 1.5 2.0 round(max(crit_up_loaded, 0), 2) round(crit_up_empty, 2)]);
 coupler_lbf = 250000;
 tons_for = @(F, gr, v) (F - fres(v, 0, gr))./((P.veh.Crr + gr/100)*g*tonkg);
 C4 = table();
@@ -227,15 +235,16 @@ for i = 1:numel(consists)
 end
 writetable(C7, fullfile(o.Out, 'C7_start_hold_grade.csv'));
 
-% D4: loco-only stopping (electric + locomotive friction, total up to adhesion); train air brakes not included
+% D4: stopping with the locomotive alone (electric + locomotive friction, up to adhesion) and with train air brakes added
 D4 = table();
 for i = 1:2
     for gr = [0, crit_dn_loaded*(i == 2) + crit_dn_empty*(i == 1)]
         for v0 = [10 15 20]
             for mu = [P.lcc.mu_adh 0.18]
-                [ts, xs] = stop_dist(v0*mps, consists(i), gr, mu);
-                D4 = [D4; table(cnames(i), gr, v0, mu, ts, xs, xs/0.3048, 'VariableNames', ...
-                    {'consist','grade_pct','from_mph','mu','time_s','distance_m','distance_ft'})]; %#ok<AGROW>
+                [ts, xs] = stop_dist(v0*mps, consists(i), gr, mu, 0);
+                [ta, xa] = stop_dist(v0*mps, consists(i), gr, mu, P.lcc.k_tb);
+                D4 = [D4; table(cnames(i), gr, v0, mu, ts, xs, xs/0.3048, ta, xa, xa/0.3048, 'VariableNames', ...
+                    {'consist','grade_pct','from_mph','mu','time_s','distance_m','distance_ft','time_air_s','distance_air_m','distance_air_ft'})]; %#ok<AGROW>
             end
         end
     end
@@ -250,10 +259,10 @@ for f = string(fieldnames(SH))'
     x = SH.(f);
     shiftT = [shiftT; table(f, string(x.name), x.C.bat_out_kWh, x.C.bat_in_regen_kWh, x.C.bat_in_charger_kWh, x.C.net_bat_kWh, ...
         x.C.peak_discharge_MW, x.C.sustained_5min_MW, 100*x.C.soc_start, 100*x.C.soc_min, 100*x.C.soc_end, x.C.reserve_ok, ...
-        x.C.regen_share*100, x.C.friction_brake_kWh, x.C.time_below_ref_2mph_min, x.C.speed_shortfall_max_mph, ...
+        x.C.regen_share*100, x.C.grid_kWh, x.C.friction_brake_kWh, x.C.time_below_ref_2mph_min, x.C.speed_shortfall_max_mph, ...
         x.M.Tcell_max, x.M.Tcond_max, x.M.pe_margin_K, x.M.Tmotor_max, x.M.k_dis_min, string(x.M.verdict), x.C.E_nom_kWh, ...
         'VariableNames', {'case','description','bat_out_kWh','regen_in_kWh','charger_in_kWh','net_kWh','peak_MW','sust5min_MW', ...
-        'soc_start_pct','soc_min_pct','soc_end_pct','reserve_ok','regen_share_pct','friction_kWh','min_below_ref','shortfall_mph', ...
+        'soc_start_pct','soc_min_pct','soc_end_pct','reserve_ok','regen_share_pct','grid_kWh','friction_kWh','min_below_ref','shortfall_mph', ...
         'Tcell_max_C','Tcond_max_C','margin_K','Tmotor_max_C','k_dis_min','verdict','E_nom_kWh'})]; %#ok<AGROW>
 end
 writetable(shiftT, fullfile(o.Out, 'C2_C5_E2_shift_cases.csv'));
@@ -270,9 +279,11 @@ for f = ["r_bol40", "r_bol46", "r_eol40", "r_eol46"]
     hours = (t2 - t1 + 60*CO.UnloadDwell_min)/3600;               % trip cycle incl. the unload dwell
     h_per_trip = hours/ntrip;
     trips = (0.90 - reserve)/per_trip;
+    if per_trip <= 0, trips = Inf; end                           % net energy-positive route: no drain to the reserve
+    drawdown = max(cummax(x.soc) - x.soc);                         % deepest SOC dip in the shift (the empty climb)
     rng = [rng; table(f, string(x.name), per_trip*x.C.E_nom_kWh, 100*per_trip, trips, floor(trips), trips*h_per_trip, ...
-        x.C.E_nom_kWh, 'VariableNames', {'case','description','kWh_per_round_trip','soc_pct_per_trip','trips_90_to_20', ...
-        'whole_trips','hours_90_to_20','E_nom_kWh'})]; %#ok<AGROW>
+        x.C.E_nom_kWh, 100*drawdown, 100*(reserve + drawdown), 'VariableNames', {'case','description','kWh_per_round_trip','soc_pct_per_trip','trips_90_to_20', ...
+        'whole_trips','hours_90_to_20','E_nom_kWh','max_dip_pct','min_start_soc_pct'})]; %#ok<AGROW>
 end
 writetable(rng, fullfile(o.Out, 'E3_range.csv'));
 
@@ -311,21 +322,26 @@ end
 % D6 descent
 DS = SIM.D6;
 dsT = table();
-for k = 1:2
+for k = 1:numel(DS.run)
     x = DS.run{k};
-    m = x.t >= DS.run{k}.t_grade(1) & x.t <= DS.run{k}.t_grade(2);
+    m = x.t >= x.t_grade(1) & x.t <= x.t_grade(2);
+    e_ = @(F) trapz(x.t(m), abs(F(m)).*x.v(m)*mps)/3.6e6;
     regen = trapz(x.t(m), -min(x.p_bat(m), 0))/3.6e6;
-    fric = trapz(x.t(m), abs(x.f_fric(m)).*x.v(m)*mps)/3.6e6;
-    dsT = [dsT; table(DS.grade(k), min(x.v(m)), max(x.v(m)), -min(x.p_bat(m))/1e6, -min(x.ib(m)), P.lcc.I_chg_max, regen, fric, ...
-        100*regen/(regen + fric), 100*(x.soc(find(m, 1, 'last')) - x.soc(find(m, 1))), x.M.Tmotor_max, x.M.Tcond_max, x.M.pe_margin_K, ...
-        x.M.Tcell_max, string(x.M.verdict), 'VariableNames', {'grade_pct','v_min_mph','v_max_mph','peak_regen_MW','peak_charge_A', ...
-        'charge_limit_A','regen_kWh','friction_kWh','regen_share_pct','soc_gain_pct','Tmotor_max_C','Tcond_max_C','margin_K','Tcell_max_C','verdict'})]; %#ok<AGROW>
+    gridE = e_(x.f_db); air = e_(x.f_tb); lf = e_(max(x.f_fric - x.f_db - x.f_tb, 0));
+    dev = x.v(m) - x.vref(m);
+    tg_ = (x.t(find(m, 1)):1:x.t(find(m, 1, 'last')))';              % 1 s basis: single solver-step spikes are not limit violations
+    pk_I = max(interp1(x.t, -x.ib, tg_)); pk_P = max(interp1(x.t, -x.p_bat, tg_))/1e6;
+    dsT = [dsT; table(string(x.name), DS.soc0(k), crit_dn_loaded, max(dev), min(dev), pk_P, pk_I, P.lcc.I_chg_max, ...
+        regen, gridE, air, lf, 100*regen/(regen + gridE + air + lf), 100*x.soc(find(m, 1)), 100*max(x.soc(m)), 100*x.soc(find(m, 1, 'last')), ...
+        x.M.Tmotor_max, x.M.Tcond_max, x.M.pe_margin_K, x.M.Tcell_max, string(x.M.verdict), 'VariableNames', {'case','soc0','grade_pct', ...
+        'overspeed_mph','underspeed_mph','peak_regen_MW','peak_charge_A','charge_limit_A','regen_kWh','grid_kWh','train_air_kWh', ...
+        'loco_friction_kWh','regen_share_pct','soc_start_pct','soc_max_pct','soc_end_pct','Tmotor_max_C','Tcond_max_C','margin_K','Tcell_max_C','verdict'})]; %#ok<AGROW>
 end
 writetable(dsT, fullfile(o.Out, 'D6_long_descent.csv'));
 
 % F2 charging
 CH = SIM.F2;
-soc_norm = SH.r_bol40.soc(end);
+soc_norm = min(SH.r_bol40.soc);                                % lowest SOC in a shift without charging
 chT = table();
 for k = 1:numel(CH.run)
     x = CH.run{k};
@@ -393,8 +409,13 @@ w('');
 w('Generated %s by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (%s, built on %s).', ...
     char(datetime('now', 'Format', 'yyyy-MM-dd HH:mm')), P.sys.model_rev, P.sys.base_rev);
 w('');
-w('> **Placeholders, replace before submitting.** CEMEX hasn''t provided the Victorville route profile, so the route (%.0f mi one way, %d segments, %.2f %% to %.2f %% with curvature), consist (%s t loaded, %s t empty) and locomotive weight (%s lb) are assumptions. Every number below comes from those inputs. Re-run `cemex_rfi_report(''Rerun'', true)` once the route arrives.', ...
-    cyc.route_mi_one_way, height(RT), min([g_load; g_empty]), max([g_load; g_empty]), th(CO.LoadedTons), th(CO.EmptyTons), th(c.loco_lb));
+if cyc.is_profile
+    w('> **Route and inputs.** Duty cycle on the %s: loaded downhill as run, empty uphill on the same profile reversed, grades %.2f %% to %+.2f %%. Loaded train %s t; **assumed:** empty train %s t (30 %% of loaded), locomotive weight %s lb, operating schedule. Re-run `cemex_rfi_report(''Rerun'', true)` when these are confirmed.', ...
+        cyc.description, min(g_all), max(g_all), th(CO.LoadedTons), th(CO.EmptyTons), th(c.loco_lb));
+else
+    w('> **Placeholders, replace before submitting.** The route (%s, %.2f %% to %.2f %% with curvature), consist (%s t loaded, %s t empty) and locomotive weight (%s lb) are assumptions. Every number below comes from those inputs.', ...
+        cyc.description, min(g_all), max(g_all), th(CO.LoadedTons), th(CO.EmptyTons), th(c.loco_lb));
+end
 w('');
 w('Locomotive as simulated: 6 axles (6 × D77 DC traction motors, 62:15, %g in wheels), %.2f MW traction (%s hp) at the rail, battery %d strings × 416S × 314 Ah LFP = %s kWh, discharge limit %s A (%.2fC), charge and regen limit %s A (%.2fC), regen on, cooling system CEMEX-sized (6 chiller modules, 3 condenser banks, 2 PE banks). Adhesion %.2f dry, %.2f wet.', ...
     c.wheel_in, P_rail/1e6, th(P_rail/745.7), c.n_str, th(c.E_nom_kWh), th(c.I_dis_max_A), c.dis_c_rate, ...
@@ -408,8 +429,8 @@ tbl({'Item', 'Value', 'Basis'}, {
     'Peak battery power (simulated)', sprintf('%.2f MW', B.peak_MW), 'base duty cycle, includes aux and cooling'
     'Short-time traction', sprintf('%.2f MW (6 × 655 kW, chopper rating)', 6*0.655), '`MotorCapkW` 655 option, discharge limit 0.81C'
     'Full power available up to', sprintf('%.0f mph', v_pow_end), 'armature voltage limit above that (750 V per motor)'
-    'Route speed limit (placeholder)', sprintf('%.0f mph', max(RT.speed_limit_mph)), 'route CSV'
-    'Locomotive weight / axle load', sprintf('%s lb / %s lb', th(c.loco_lb), th(c.loco_lb/6)), 'PLACEHOLDER'
+    'Route top speed', sprintf('%.0f mph', cyc.speed_range_mph(2)), 'route profile'
+    'Locomotive weight / axle load', sprintf('%s lb / %s lb', th(c.loco_lb), th(c.loco_lb/6)), 'ASSUMED (weight study pending)'
     'Dimensions', 'not in the model', 'mechanical design'
     });
 
@@ -425,12 +446,22 @@ end
 tbl({'Consist', 'mph', 'SOC 90 %', 'SOC 50 %', 'SOC 20 %', '5-min rating', 'Wet (μ 0.18)'}, rows);
 w('- **Battery charge doesn''t change grade capability** above the 20 %% reserve. The discharge limit is sized so full power holds down to 1,248 V, and the loaded pack stays at or above %s V at 20 %% SOC.', th(min(arrayfun(@(q) min(getfield(struct('V', cemex_capability_V(P, q)), 'V')), reserve)))); %#ok<GFLD>
 w('- **Ambient temperature doesn''t change it either, up to 48 °C.** The 46 °C shift ran with no derating: battery discharge factor %.2f, verdict %s, condenser %.1f °C (limit 65 °C).', H.k_dis_min, H.verdict, H.Tcond_max_C);
-[~, ic] = max(g_load);
-if bal_speed(CO.LoadedTons, crit_up_loaded, TEc) > 0
-    w('- The route''s steepest loaded grade is %.2f %% (with curvature). The loaded train holds it at %.1f mph on the continuous rating.', crit_up_loaded, bal_speed(CO.LoadedTons, crit_up_loaded, TEc));
-else
-    w('- The route''s steepest loaded grade (%.2f %% with curvature, %.1f mi) is above the loaded continuous-rating limit (%.2f %%). The loaded train climbs it on the short-time rating at %.1f mph. In a 30-minute simulated climb the motors reached %.0f °C, against a 180 °C limit. A climb much longer than the placeholder segment would need motor current ratings confirmed for that duty.', ...
-        crit_up_loaded, RT.length_mi(ic), C1.grade_cont_soc90(C1.trailing_tons == CO.LoadedTons & C1.speed_mph == 15), acc.balance_mph(2), AC.loaded_crit.M.Tmotor_max);
+dirs = {'loaded', CO.LoadedTons, crit_up_loaded, cyc.crit_up_loaded_mi, 2, 'loaded_crit'
+        'empty',  CO.EmptyTons,  crit_up_empty,  cyc.crit_up_empty_mi,  4, 'empty_crit'};
+for i = 1:2
+    [dn_, tn_, gc_, ln_, ia_, ac_] = dirs{i, :};
+    if gc_ < 0.2
+        w('- The %s direction has no real climb on this route (steepest %+.2f %%).', dn_, gc_);
+        continue
+    end
+    g_cont = gmax(at(TEc, 10), tn_, 10);
+    if bal_speed(tn_, gc_, TEc) > 0
+        w('- The route''s steepest %s climb is %.2f %% for %.1f mi. The %s train (%s t) holds it at %.1f mph on the continuous rating (limit at 10 mph: %.2f %%).', ...
+            dn_, gc_, ln_, dn_, th(tn_), bal_speed(tn_, gc_, TEc), g_cont);
+    else
+        w('- The route''s steepest %s climb (%.2f %% for %.1f mi) is above the %s train''s continuous-rating limit (%.2f %%). It climbs on the short-time rating at %.1f mph; in a 30-minute simulated climb the motors reached %.0f °C, against a 180 °C limit.', ...
+            dn_, gc_, ln_, dn_, g_cont, acc.balance_mph(ia_), AC.(ac_).M.Tmotor_max);
+    end
 end
 w('');
 
@@ -439,15 +470,16 @@ w('');
 w('Inputs the simulation covers:');
 w('');
 tbl({'RFI input', 'Value used'}, {
-    'Locomotive weight', sprintf('%s lb (placeholder)', th(c.loco_lb))
-    'Train consist', sprintf('%s t loaded, %s t empty (placeholder, 40 cars)', th(CO.LoadedTons), th(CO.EmptyTons))
-    'Grades / curvature', sprintf('%d segments, %.1f %% to %+.1f %%, curves 0-%g° (placeholder)', height(RT), min(RT.grade_pct), max(RT.grade_pct), max(RT.curve_deg))
-    'Speed restrictions', sprintf('%g-%g mph by segment', min(RT.speed_limit_mph), max(RT.speed_limit_mph))
-    'Acceleration', sprintf('%.2f mph/s up, %.2f mph/s down, within adhesion and power', CO.Accel_mphps, CO.Decel_mphps)
+    'Route', cyc.description
+    'Locomotive weight', sprintf('%s lb (assumed)', th(c.loco_lb))
+    'Train consist', sprintf('%s t loaded; %s t empty (assumed, 30 %% of loaded)', th(CO.LoadedTons), th(CO.EmptyTons))
+    'Grades / curvature', sprintf('%.2f %% to %+.2f %% as recorded (curvature included in the recorded grade)', min(g_all), max(g_all))
+    'Speed restrictions', cyc.speed_text
+    'Acceleration', 'as run on the route profile, within adhesion and power'
     'Stops / starts', sprintf('%d round trips; %g min loading, %g min unloading, stop at each end', CO.Trips, CO.LoadDwell_min, CO.UnloadDwell_min)
     'Ambient', sprintf('%g °C (46 °C case below)', CO.Ambient_C)
     'Auxiliary loads', '`cemex_load_budget.csv` (blowers, compressor, cab, controls) plus cooling system from the thermal model'
-    'Regenerative braking', sprintf('on, limited to %s A (0.5C) and to the traction power cap', th(P.lcc.I_chg_max))
+    'Braking', sprintf('regen to %s A (0.5C) and the traction power cap, cut off at %.0f %% SOC; dynamic-brake grids %.1f MW; train air brakes beyond locomotive adhesion', th(P.lcc.I_chg_max), 100*P.lcc.soc_reg_max, P.lcc.P_db_max/1e6)
     'Battery limits', sprintf('discharge %s A, charge %s A, BMS temperature derates (45/50 °C hot)', th(c.I_dis_max_A), th(P.lcc.I_chg_max))
     'Battery degradation', 'end-of-life case: 70 % capacity (8,000 cycles, Voltify response), 1.5× resistance (assumed)'
     'Charging opportunities', sprintf('%g kW during each plant unload dwell; none at the quarry', CO.PlantCharge_kW)
@@ -457,7 +489,7 @@ w('');
 shift_tbl(shiftT);
 w('![Base shift](fig_C2_base_shift.png)');
 w('');
-w('Every shift case finished with the train on schedule within the speed tolerance. The shortfall column is the worst gap below the speed limit; it comes from the heavy pulls being adhesion-limited. Every case was thermally %s.', strjoin(unique(shiftT.verdict), '/'));
+w('Every shift case finished with the train on schedule within the speed tolerance. The shortfall column is the worst gap below the profile speed (%.1f mph at most), where the locomotive is at its power or adhesion limit. Every case was thermally %s.', max(shiftT.shortfall_mph), strjoin(unique(shiftT.verdict), '/'));
 w('');
 
 w('## C3: Acceleration');
@@ -491,7 +523,7 @@ w('');
 tbl({'Metric', 'Base shift (3 round trips)', 'Per round trip'}, {
     'Battery energy out', [th(B.bat_out_kWh) ' kWh'], [th(B.bat_out_kWh/ntrip) ' kWh']
     'Regen returned to battery', [th(B.regen_in_kWh) ' kWh'], [th(B.regen_in_kWh/ntrip) ' kWh']
-    'Net battery energy (no charging)', '', sprintf('%s kWh (no-charging run)', th(rng.kWh_per_round_trip(1)))
+    'Net battery energy (no charging)', '', sprintf('%s kWh (no-charging run; negative = net gain)', th(rng.kWh_per_round_trip(1)))
     'Charger energy in (plant dwells)', [th(B.charger_in_kWh) ' kWh'], ''
     'Peak demand (battery)', sprintf('%.2f MW', B.peak_MW), ''
     'Highest 5-minute average', sprintf('%.2f MW', B.sust5min_MW), ''
@@ -528,26 +560,30 @@ w('- at %.2f %%: the train creeps to %.2f mph and stalls. The anti-rollback brak
 w('');
 w('Rollback is prevented by the park/anti-rollback brake whenever speed is commanded to zero or the train rolls back. With the locomotive brake alone, the loaded train holds up to %.2f %%.', g_hold_loco);
 w('');
-if crit_up_loaded > C7.start_grade_wet_pct(2)
-    w('**Route impact.** The steepest loaded grade (%.2f %% with curvature) is above the wet restart limit (%.2f %%). A loaded train stopped there in wet conditions needs sand, or a lower trailing load.', crit_up_loaded, C7.start_grade_wet_pct(2));
-    w('');
+ri = {'loaded', crit_up_loaded, 2; 'empty', crit_up_empty, 1};
+for i = 1:2
+    if ri{i, 2} > C7.start_grade_wet_pct(ri{i, 3})
+        w('**Route impact (%s).** The steepest %s climb (%.2f %%) is above the %s train''s wet restart limit (%.2f %%). A %s train stopped there in wet conditions needs sand, or a lighter train.', ...
+            ri{i, 1}, ri{i, 1}, ri{i, 2}, ri{i, 1}, C7.start_grade_wet_pct(ri{i, 3}), ri{i, 1});
+    elseif ri{i, 2} >= 0.2
+        w('**Route impact (%s).** The %s train can restart anywhere on the route, wet or dry: its steepest climb is %.2f %%, against a wet restart limit of %.2f %%.', ...
+            ri{i, 1}, ri{i, 1}, ri{i, 2}, C7.start_grade_wet_pct(ri{i, 3}));
+    end
 end
+w('');
 
 w('## C8: Limitations and assumptions');
 w('');
-w('1. The route, consist and locomotive weight are placeholders until CEMEX provides the Victorville profile.');
-if crit_up_loaded > C7.start_grade_wet_pct(2)
-    w('2. Wet-rail restart of the loaded train is limited to %.2f %%, below the route''s %.2f %% (see C7). Keep stop locations off the steepest loaded segment, or sand.', C7.start_grade_wet_pct(2), crit_up_loaded);
+w('1. The empty-train weight, locomotive weight and operating schedule are assumptions; the train air brake capacity (%.0f %% of trailing weight) needs CEMEX car brake data.', 100*P.lcc.k_tb);
+w('2. Wet-rail restart limits: loaded train %.2f %% (route climb %.2f %%), empty train %.2f %% (route climb %.2f %%); see C7.', ...
+    C7.start_grade_wet_pct(2), crit_up_loaded, C7.start_grade_wet_pct(1), crit_up_empty);
+if isinf(rng.trips_90_to_20(1))
+    w('3. Without charging, the route is net energy-positive, so the battery doesn''t drain toward the reserve (E3). Leave the plant at or above %.0f %% SOC to cover the empty-climb dip with reserve.', max(rng.min_start_soc_pct));
 else
-    w('2. Wet-rail restart of the loaded train is limited to %.2f %%. The route maximum is %.2f %%.', C7.start_grade_wet_pct(2), crit_up_loaded);
+    w('3. Without charging, the battery covers %d round trips before the 20 %% reserve when new, and %d at end of life (E3). The plant charger is required for longer shifts.', rng.whole_trips(1), rng.whole_trips(3));
 end
-w('3. Without charging, the battery covers %d round trips before the 20 %% reserve when new, and %d at end of life (E3). The plant charger is required for longer shifts.', rng.whole_trips(1), rng.whole_trips(3));
-w('4. The locomotive alone can hold the loaded train on descents up to %.2f %%. Steeper descents need train air brakes.', g_hold_loco);
-w('5. Not modeled:');
-w('   - individual-axle slip control (the model uses one adhesion value)');
-w('   - dynamic-brake grids');
-w('   - regen cut-off at full SOC (the model limits regen on temperature only)');
-w('   - battery calendar aging');
+w('4. The locomotive alone can hold the loaded train on descents up to %.2f %%. The route''s %.2f %% loaded descent needs the train air brakes as well (D3, D4).', g_hold_loco, crit_dn_loaded);
+w('5. Not modeled: individual-axle slip control (the model uses one adhesion value).');
 w('6. The cell rating at 0.67C continuous discharge needs confirmation from the cell supplier. Victorville''s design ambient is assumed to be 46 °C.');
 w('');
 
@@ -614,37 +650,47 @@ w('');
 
 w('## D3: Brake blending');
 w('');
-w('As simulated, the speed controller asks for braking effort, and regen supplies it up to the smallest of:');
+w('As simulated, the speed controller asks for one braking effort, which is met automatically at every time step in this order:');
 w('');
-w('- adhesion');
-w('- the traction power cap');
-w('- the BMS charge current (%s A), scaled by the BMS temperature factor', th(P.lcc.I_chg_max));
+w('1. **Regen to the battery,** up to the smallest of adhesion, the traction power cap and the charge current limit (%s A, scaled by the battery temperature factor). Regen tapers to zero as the battery goes from %.0f %% to %.0f %% SOC, and fades out below %.1f mph.', ...
+    th(P.lcc.I_chg_max), 100*(P.lcc.soc_reg_max - P.lcc.soc_reg_band), 100*P.lcc.soc_reg_max, 1.5/mps);
+w('2. **Dynamic-brake grids** (%.1f MW), for whatever regen cannot take: battery full or charge-limited. Grid effort fades below %.0f mph, and regen plus grids stay within adhesion.', P.lcc.P_db_max/1e6, P.lcc.v_db_blend/mps);
+w('3. **Train air brakes** on the cars, for demand beyond what the locomotive can hold by adhesion. Up to %.0f %% of the trailing weight (assumed until CEMEX gives car brake data).', 100*P.lcc.k_tb);
+w('4. **Locomotive friction brakes** last, with the locomotive''s total braking kept within adhesion.');
 w('');
-w('Below %.1f mph regen fades out. Friction makes up the difference automatically at every time step.', 1.5/mps);
+w('**Evidence: the loaded run down from Black Mountain** (%s t), from three arrival states:', th(CO.LoadedTons));
 w('');
-w('**Evidence.** On the 10-mile %.2f %% descent, regen hit its power limit and friction took %.0f %% of the braking energy, with no speed loss (%.1f-%.1f mph). The regen-off case in `results_cases.csv` moved all braking to friction (604 kWh per shift) with no change to the trip.', ...
-    dsT.grade_pct(2), 100 - dsT.regen_share_pct(2), dsT.v_min_mph(2), dsT.v_max_mph(2));
+for i = 1:height(dsT)
+    r = dsT(i, :);
+    w('- **%s:** regen %s kWh, grids %s kWh, train air %s kWh, locomotive friction %s kWh. Speed held within %+.1f / %+.1f mph of the profile; SOC %.0f %% → %.0f %% (peak %.1f %%).', ...
+        erase(char(r.case), 'Loaded descent, '), th(r.regen_kWh), th(r.grid_kWh), th(r.train_air_kWh), th(r.loco_friction_kWh), r.overspeed_mph, r.underspeed_mph, ...
+        r.soc_start_pct, r.soc_end_pct, r.soc_max_pct);
+end
 w('');
-w('Two things are **not in the model yet**:');
-w('');
-w('- regen cut-off as the battery approaches full charge (the descents start at 60 %% SOC for that reason)');
-w('- the dynamic-brake grid path');
+w('The transitions are automatic. When the battery fills, regen hands over to the grids with no change in speed. Without grids, the friction brakes take over. The car air brakes carry only the share of the steepest grade that exceeds the locomotive''s adhesion.');
 w('');
 
 w('## D4: Braking effort and stopping distance');
 w('');
-w('Regen braking effort vs speed is in the D1 table and figure. The stopping distances below use **locomotive braking only**: regen plus locomotive friction, up to adhesion. Train air brakes are excluded, so these are upper bounds. They need the CEMEX car brake ratios to refine.');
+w('Regen braking effort vs speed is in the D1 table and figure. Stopping distances are given two ways:');
+w('');
+w('- **Locomotive alone:** regen, grids and locomotive friction, up to adhesion.');
+w('- **With train air brakes:** plus car brakes at %.0f %% of trailing weight (assumed full-service retardation; to be refined with CEMEX car brake ratios).', 100*P.lcc.k_tb);
+w('');
+w('"Cannot stop" means the grade force exceeds that braking on its own. Grades are the route''s steepest descents.');
 w('');
 rows = {};
 for i = 1:height(D4)
-    rows(end+1, :) = {char(D4.consist(i)), sprintf('%.2f', D4.grade_pct(i)), sprintf('%d', D4.from_mph(i)), sprintf('%.2f', D4.mu(i)), f0(D4.time_s(i)), th(D4.distance_m(i)), th(D4.distance_ft(i))}; %#ok<AGROW>
+    rows(end+1, :) = {char(D4.consist(i)), sprintf('%.2f', D4.grade_pct(i)), sprintf('%d', D4.from_mph(i)), sprintf('%.2f', D4.mu(i)), ...
+        stopf(D4.time_s(i)), stopf(D4.distance_ft(i), true), stopf(D4.time_air_s(i)), stopf(D4.distance_air_ft(i), true)}; %#ok<AGROW>
 end
-tbl({'Consist', 'Grade %', 'From mph', 'μ', 'Time s', 'Distance m', 'Distance ft'}, rows);
+tbl({'Consist', 'Grade %', 'From mph', 'μ', 'Loco alone: time s', 'Loco alone: ft', 'With train air: time s', 'With train air: ft'}, rows);
 
 w('## D5: Regenerative energy recovery');
 w('');
-w('- **Per shift:** regen returns %s kWh to the battery, %s kWh per round trip. That is %.0f %% of the braking energy; %s kWh goes to friction.', th(B.regen_in_kWh), th(B.regen_in_kWh/ntrip), B.regen_share_pct, th(B.friction_kWh));
-w('- **Share of battery output:** %.0f %%.', 100*B.regen_in_kWh/B.bat_out_kWh);
+w('- **Per shift:** regen returns %s kWh to the battery, %s kWh per round trip. That is %.0f %% of the braking energy; %s kWh goes to the grids and %s kWh to friction (train air and locomotive).', ...
+    th(B.regen_in_kWh), th(B.regen_in_kWh/ntrip), B.regen_share_pct, th(B.grid_kWh), th(B.friction_kWh));
+w('- **Regen vs battery output:** regen returns %.0f %% of what the battery delivers over the shift.', 100*B.regen_in_kWh/B.bat_out_kWh);
 w('- **End of life:** %s kWh per shift. **Wet rail:** %s kWh per shift.', th(E.regen_in_kWh), th(W.regen_in_kWh));
 w('');
 w('Limiting assumptions:');
@@ -652,24 +698,27 @@ w('');
 w('- regen limited to 0.5C charge current and the %.2f MW traction cap', c.P_trac_max_MW);
 w('- fades below 3.4 mph');
 w('- drivetrain efficiency 0.88 each way');
-w('- regen is not cut off at high SOC; shifts reach at most %.0f %% (the charger taper), where a real BMS would start limiting regen', max(shiftT.soc_end_pct));
-w('- placeholder route descents');
+w('- regen tapers out between %.0f %% and %.0f %% SOC; above that the grids take the braking', 100*(P.lcc.soc_reg_max - P.lcc.soc_reg_band), 100*P.lcc.soc_reg_max);
+w('- the battery''s state at the top of each descent sets the split (D6): arriving at the quarry with headroom recovers the whole descent');
 w('');
 
 w('## D6: Thermal management on long descents');
 w('');
-w('Loaded train, 10 miles of continuous descent at 20 mph, starting at 60 %% SOC, 40 °C:');
+w('The loaded run down from Black Mountain (%s t, %.1f mi, steepest %.2f %% for %.1f mi), %g °C:', th(CO.LoadedTons), cyc.route_mi_one_way, crit_dn_loaded, cyc.crit_dn_loaded_mi, CO.Ambient_C);
 w('');
 rows = {};
 for i = 1:height(dsT)
     r = dsT(i, :);
-    rows(end+1, :) = {sprintf('%.2f', r.grade_pct), sprintf('%.1f-%.1f', r.v_min_mph, r.v_max_mph), sprintf('%.2f', r.peak_regen_MW), ...
-        sprintf('%s / %s', th(r.peak_charge_A), th(r.charge_limit_A)), th(r.regen_kWh), th(r.friction_kWh), sprintf('%.1f', r.soc_gain_pct), ...
-        sprintf('%.0f', r.Tmotor_max_C), sprintf('%.1f', r.Tcond_max_C), sprintf('%.1f', r.Tcell_max_C), char(r.verdict)}; %#ok<AGROW>
+    rows(end+1, :) = {erase(char(r.case), 'Loaded descent, '), sprintf('%.0f→%.0f', r.soc_start_pct, r.soc_end_pct), sprintf('%.2f', r.peak_regen_MW), ...
+        sprintf('%s / %s', th(r.peak_charge_A), th(r.charge_limit_A)), th(r.regen_kWh), th(r.grid_kWh), th(r.train_air_kWh), th(r.loco_friction_kWh), ...
+        sprintf('%.0f', r.Tmotor_max_C), sprintf('%.1f', r.Tcell_max_C), char(r.verdict)}; %#ok<AGROW>
 end
-tbl({'Grade %', 'Speed mph', 'Peak regen MW', 'Charge A / limit', 'Regen kWh', 'Friction kWh', 'SOC +%', 'Motor °C', 'Condenser °C', 'Cell °C', 'Verdict'}, rows);
-w('Regen braking is continuous: it is set by the battery charge limit and the cooling system, not by a grid duty cycle. The heat goes into the battery as charge and its losses go to the cooling loops, which stay within limits. On long descents the limit is battery capacity: about %.1f %% SOC per mile at %.2f %%. Descents longer than the battery headroom need the dynamic-brake grids or friction.', ...
-    dsT.soc_gain_pct(1)/10, dsT.grade_pct(1));
+tbl({'Case', 'SOC %', 'Peak regen MW (1 s)', 'Charge A (1 s) / limit', 'Regen kWh', 'Grids kWh', 'Train air kWh', 'Loco friction kWh', 'Motor °C', 'Cell °C', 'Verdict'}, rows);
+w('- **Continuous braking.** Regen and the grids together give continuous electric braking down the whole descent, with no duty-cycle limit. Regen energy goes into the battery as charge, and its losses go to the cooling loops, which stay within limits. Grid heat goes straight to the air.');
+w('- **Battery headroom is the lever.** Arriving at the quarry at %.0f %% SOC, the battery absorbs %s kWh, the whole descent except the car-brake share. Arriving at %.0f %%, it fills to %.0f %%, and the grids burn %s kWh that could have been stored.', ...
+    dsT.soc_start_pct(1), th(dsT.regen_kWh(1)), dsT.soc_start_pct(2), dsT.soc_max_pct(2), th(dsT.grid_kWh(2)));
+w('- **Operating recommendation:** plan plant charging so the locomotive leaves the plant with enough headroom for the loaded descent. Regen then refills it for free.');
+w('- **Without grids** at full SOC, the same energy goes to friction brakes (%s kWh locomotive, %s kWh train air). That is wear and heat, not a speed limit.', th(dsT.loco_friction_kWh(3)), th(dsT.train_air_kWh(3)));
 w('');
 w('![Descent](fig_D6_descent.png)');
 w('');
@@ -700,15 +749,25 @@ tbl({'', 'Beginning of life', 'End of life (70 %)'}, {
 
 w('## E3: Range and operating hours');
 w('');
-w('No charging, starting at 90 %% SOC, down to the 20 %% reserve. Trips and hours are extrapolated from the SOC used per round trip in a 3-trip run. Hours include a %g min unload dwell per trip.', CO.UnloadDwell_min);
+w('No charging, starting at 90 %% SOC: 3-trip runs, extrapolated per round trip. Negative energy means the round trip returns more to the battery than it takes.');
 w('');
 rows = {};
 for i = 1:height(rng)
     r = rng(i, :);
-    rows(end+1, :) = {char(r.description), th(r.kWh_per_round_trip), sprintf('%.1f', r.soc_pct_per_trip), sprintf('%.1f', r.trips_90_to_20), sprintf('%.1f', r.hours_90_to_20)}; %#ok<AGROW>
+    if isinf(r.trips_90_to_20), tr_ = 'unlimited'; hr_ = 'unlimited'; else, tr_ = sprintf('%.1f', r.trips_90_to_20); hr_ = sprintf('%.1f', r.hours_90_to_20); end
+    rows(end+1, :) = {char(r.description), th(r.kWh_per_round_trip), sprintf('%+.1f', -r.soc_pct_per_trip), sprintf('%.1f', r.max_dip_pct), ...
+        sprintf('%.0f', r.min_start_soc_pct), tr_, hr_}; %#ok<AGROW>
 end
-tbl({'Scenario', 'kWh per round trip', 'SOC % per trip', 'Round trips to reserve', 'Hours to reserve'}, rows);
-w('With plant charging (%g kW for each %g min unload dwell) the base shift ends at %.0f %% SOC, so range is set by charging, not by capacity.', CO.PlantCharge_kW, CO.UnloadDwell_min, B.soc_end_pct);
+tbl({'Scenario', 'Net kWh per round trip', 'SOC change per trip %', 'Deepest dip in shift %', 'Lowest safe start SOC %', 'Round trips to reserve', 'Hours to reserve'}, rows);
+if all(isinf(rng.trips_90_to_20))
+    w('**On this route the locomotive is net energy-positive.** The loaded descent returns more energy than the empty climb takes, so the battery never runs down toward the reserve, new or at end of life. The constraint is instead the SOC dip on each empty climb: up to %.1f %% (%.1f %% at end of life). Leaving the plant at or above %.0f %% keeps the 20 %% reserve on every trip.', ...
+        rng.max_dip_pct(1), rng.max_dip_pct(3), max(rng.min_start_soc_pct));
+    w('');
+    w('The plant charger becomes a top-up for auxiliaries and losses, not the energy source: the base shift draws only %s kWh from it. Charging high actually costs energy: above %.0f %% SOC the descent regen goes to the grids (D6).', ...
+        th(B.charger_in_kWh), 100*(P.lcc.soc_reg_max - P.lcc.soc_reg_band));
+else
+    w('With plant charging (%g kW for each %g min unload dwell) the base shift ends at %.0f %% SOC, so range is set by charging, not by capacity.', CO.PlantCharge_kW, CO.UnloadDwell_min, B.soc_end_pct);
+end
 w('');
 w('![SOC](fig_E3_soc.png)');
 w('');
@@ -749,7 +808,7 @@ w('Limits:');
 w('');
 w('- capacity only; resistance growth is assumed at 1.5× at end of life (E2) and not modeled');
 w('- BLAST fit range 10-45 °C, charge rate up to 0.65C (the regen and charge limit is 0.5C, inside the range)');
-w('- placeholder route and schedule');
+w('- assumed operating schedule');
 w('- the cell datasheet revision is still to be confirmed with the manufacturer');
 w('');
 w('To make E4 a warranted figure, we need from the battery supplier:');
@@ -761,7 +820,7 @@ w('');
 
 w('## F2: Charging time');
 w('');
-w('Parked charging, pack preconditioned to 25 °C. The BMS charge limit is %s A (0.5C), about %.1f MW at the battery, so a 3 MW charger is battery-limited. The "normal window" is from the SOC after a 3-trip shift with no charging (%.0f %%) back to 90 %%.', th(P.lcc.I_chg_max), P.lcc.I_chg_max*416*3.25/1e6, 100*soc_norm);
+w('Parked charging, pack preconditioned to 25 °C. The BMS charge limit is %s A (0.5C), about %.1f MW at the battery, so a 3 MW charger is battery-limited. The "normal window" is from the lowest SOC in a 3-trip shift without charging (%.0f %%, after the empty climb) back to 90 %%.', th(P.lcc.I_chg_max), P.lcc.I_chg_max*416*3.25/1e6, 100*soc_norm);
 w('');
 rows = {};
 for i = 1:height(chT)
@@ -921,8 +980,8 @@ S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st
         if f_(44) > 0, vb = 44; return; end
         vb = fzero(f_, [0.5 44]);
     end
-    function [ts, xs] = stop_dist(v0, tons, gr, mu)
-        Fb = mu*P.veh.m_loco*g;
+    function [ts, xs] = stop_dist(v0, tons, gr, mu, ktb)
+        Fb = mu*P.veh.m_loco*g + ktb*tons*tonkg*g;      % locomotive to adhesion + train air brakes (ktb x trailing weight)
         f_ = @(~, y) [-(Fb + fres(y(1), tons, gr))/meff(tons); y(1)];
         if Fb + fres(0, tons, gr) <= 0, ts = Inf; xs = Inf; return; end
         opt = odeset('Events', @stopped, 'RelTol', 1e-6);
@@ -947,12 +1006,13 @@ S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st
         plot(vgrid, TEw/1e3, 'c-', 'LineWidth', 1.5, 'DisplayName', 'TE wet (\mu 0.18)');
         plot(vgrid, -TEb/1e3, 'r-', 'LineWidth', 2, 'DisplayName', 'Regen braking effort (dry)');
         plot(vgrid, -TEbw/1e3, 'm-', 'LineWidth', 1.2, 'DisplayName', 'Regen braking effort (wet)');
-        for gr_ = [0 0.5 crit_up_loaded]
-            plot(vgrid, fres(vgrid*mps, CO.LoadedTons, gr_)/1e3, 'k:', 'DisplayName', sprintf('Loaded train resistance, %.2f %%', gr_));
+        for gr_ = [0 0.5 1.0]
+            plot(vgrid, fres(vgrid*mps, CO.LoadedTons, gr_)/1e3, 'k:', 'DisplayName', sprintf('Loaded train (%s t) resistance, %.1f %%', th(CO.LoadedTons), gr_));
         end
+        plot(vgrid, fres(vgrid*mps, CO.EmptyTons, crit_up_empty)/1e3, 'k--', 'DisplayName', sprintf('Empty train (%s t) on %.2f %%', th(CO.EmptyTons), crit_up_empty));
         yline(0, 'k-', 'HandleVisibility', 'off');
         xlabel('Speed (mph)'); ylabel('Effort at the rail (kN)');
-        title(sprintf('CEMEX six-axle: tractive and regen braking effort (%.2f MW, %s lb, placeholder weight)', c.P_trac_max_MW, th(c.loco_lb)));
+        title(sprintf('CEMEX six-axle: tractive and regen braking effort (%.2f MW, %s lb, assumed weight)', c.P_trac_max_MW, th(c.loco_lb)));
         legend('Location', 'eastoutside'); xlim([0 45]);
         exportgraphics(f, fn, 'Resolution', 150); close(f);
     end
@@ -961,7 +1021,7 @@ S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st
         th_ = x.t/3600;
         tiledlayout(4, 1, 'TileSpacing', 'compact');
         nexttile; plot(th_, x.vref, 'k:', th_, x.v, 'b'); ylabel('mph'); legend('speed limit', 'speed'); grid on;
-        title('Base shift: 3 round trips, 2 MW plant charging, 40 °C (placeholder route)');
+        title(sprintf('Base shift: %d round trips, Black Mountain route, 2 MW plant charging, %g °C', CO.Trips, CO.Ambient_C));
         nexttile; plot(th_, x.grade, 'k'); ylabel('grade %'); grid on;
         nexttile; plot(th_, x.p_bat/1e6, 'r'); ylabel('battery MW'); grid on; yline(0, 'k-');
         nexttile; plot(th_, 100*x.soc, 'g', 'LineWidth', 1.5); ylabel('SOC %'); yline(100*reserve, 'r--', 'reserve'); ylim([0 100]); grid on; xlabel('hours');
@@ -982,15 +1042,23 @@ S = struct('curve', CURVE, 'C1', C1, 'C3', acc, 'C4', C4, 'C7', C7, 'C7_sim', st
     end
     function fig_descent(fn)
         f = figure('Visible', 'off', 'Position', [0 0 1200 800]);
-        tiledlayout(4, 1, 'TileSpacing', 'compact');
-        for kk = 1:2
-            x = DS.run{kk}; tm = x.t/60;
-            nexttile(1); hold on; plot(tm, x.v, 'DisplayName', x.name); ylabel('mph'); grid on;
-            nexttile(2); hold on; plot(tm, -x.p_bat/1e6, 'DisplayName', x.name); ylabel('regen MW'); grid on;
-            nexttile(3); hold on; plot(tm, x.f_fric/1e3.*(x.v > 0.5), 'DisplayName', x.name); ylabel('friction kN (moving)'); grid on;
-            nexttile(4); hold on; plot(tm, 100*x.soc, 'DisplayName', x.name); ylabel('SOC %'); grid on; xlabel('minutes');
+        tiledlayout(1 + numel(DS.run), 1, 'TileSpacing', 'compact');
+        x = DS.run{1}; tm = x.t/60;
+        nexttile; hold on; grid on;
+        plot(tm, x.vref, 'k:', tm, x.v, 'b'); ylabel('mph');
+        yyaxis right; plot(tm, x.grade, 'Color', [0.5 0.5 0.5]); ylabel('grade %');
+        legend('profile speed', 'simulated speed', 'grade', 'Location', 'southeast');
+        title(sprintf('Loaded descent from Black Mountain, %s t: braking effort by source', th(CO.LoadedTons)));
+        for kk = 1:numel(DS.run)
+            x = DS.run{kk}; tm = x.t/60; mv_ = x.v > 0.5;
+            regen_kN = max(-x.p_bat, 0)./max(x.v*mps, 0.5)/1e3.*mv_;      % regen effort at the battery (after drive losses)
+            Y = [regen_kN, x.f_db/1e3, x.f_tb/1e3, max(x.f_fric - x.f_db - x.f_tb, 0)/1e3.*mv_];
+            nexttile; area(tm, Y, 'LineStyle', 'none'); grid on; ylabel('kN');
+            yyaxis right; plot(tm, 100*x.soc, 'k', 'LineWidth', 1.2); ylabel('SOC %');
+            title(x.name);
+            if kk == 1, legend('regen (battery)', 'dynamic-brake grids', 'train air brakes', 'locomotive friction', 'SOC', 'Location', 'northeast'); end
         end
-        nexttile(1); legend('Location', 'south'); title('Long descent, loaded train, regen + automatic friction blend');
+        xlabel('minutes');
         exportgraphics(f, fn, 'Resolution', 150); close(f);
     end
     function fig_charge(fn)
@@ -1056,6 +1124,8 @@ x.t = r.t; x.v = r.v_mph; x.vref = r.v_ref; x.soc = r.soc; x.p_bat = r.p_bat; x.
 x.te = 4*r.te_ax; x.f_fric = r.f_fric; x.p_chg = r.p_chg; x.Tc = r.Tc;
 x.Tcd = r.Tcd; x.Tsup = r.Tsup; x.Tm = r.Tm; x.p_aux = r.p_aux; x.p_tms = r.p_tms; x.q_chill = r.q_chill; x.amb = r.ambient;
 x.faults = string(R.faults.fault_id)';
+x.f_db = zeros(size(r.t)); x.f_tb = x.f_db;
+if isfield(r, 'f_db'), x.f_db = r.f_db; x.f_tb = r.f_tb; end
 x.grade = interp1(R.trace.SCN(:,1), R.trace.SCN(:,3), r.t, 'previous', 'extrap');
 x.M = R.metrics;
 x.C = R.cemex;
@@ -1147,4 +1217,12 @@ function F = read_fault_library(f)
 % wrong delimiter (27 columns); force comma-delimited text, then hand the table to the shared loader.
 opts = detectImportOptions(f, 'Delimiter', ',', 'TextType', 'string');
 F = load_fault_table(readtable(f, opts));
+end
+
+function s = stopf(x, comma)
+% stopping time / distance cell: "cannot stop" when the grade force exceeds the braking
+if nargin < 2, comma = false; end
+if isinf(x), s = 'cannot stop';
+elseif comma, s = th(x);
+else, s = sprintf('%.0f', x); end
 end

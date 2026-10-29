@@ -311,7 +311,7 @@ map = {
     'eta_aux','P.aux.eta'; 'P_aux_max','P.aux.P_max';
     'P_chg_max','P.chg.P_max'; 'I_chg_hw','P.chg.I_hw'; 'I_chg_bms','P.chg.I_bms'; 'soc_max','P.chg.soc_max'; 'soc_band','P.chg.soc_band';
     'wn_v','P.sys.wn_v'; 'zeta_v','P.sys.zeta_v'; 'mu_adh','P.lcc.mu_adh'; 'P_trac_max','P.lcc.P_trac_max';
-    'I_dis_max','P.lcc.I_dis_max'; 'I_chg_max','P.lcc.I_chg_max'; 'eta_drv','P.lcc.eta_drv';
+    'I_dis_max','P.lcc.I_dis_max'; 'I_chg_max','P.lcc.I_chg_max'; 'eta_drv','P.lcc.eta_drv'; 'eta_reg','P.lcc.eta_reg';
     'soc_reg_max','P.lcc.soc_reg_max'; 'soc_reg_band','P.lcc.soc_reg_band'; 'P_db_max','P.lcc.P_db_max'; 'v_db_blend','P.lcc.v_db_blend'; 'k_tb','P.lcc.k_tb'};
 thf = fieldnames(P.th);
 map = [map; [strcat('th_', thf), strcat('P.th.', thf)]];
