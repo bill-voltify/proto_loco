@@ -85,6 +85,27 @@ if need('G5')
     save(cache, 'SIM');
 end
 
+% Locomotive weight sweep (Voltify weight study, cemex_weight): reference SD60 weight, the study's estimate for this
+% battery, the base-case assumption, and the study's 9.4 MWh configuration.
+WTw = [368000, round(cemex_weight(P.sys.cemex.E_bol_kWh).total_lb, -2), P.sys.cemex.loco_lb, round(cemex_weight(9375).total_lb, -2)];
+WTn = ["SD60 reference weight", "Weight study at 5.85 MWh (lower bound)", "Base case (assumed)", "Weight of a 9.4 MWh build"];
+if need('WT')
+    fprintf('Weight sweep runs...\n');
+    WT = struct('w', WTw, 'shift', {{}}, 'desc', {{}});
+    for k = 1:numel(WTw)
+        fprintf('  %s lb\n', num2str(WTw(k)));
+        R = run_cemex([], 'LocoLb', WTw(k), 'Plot', false, 'Silent', true);
+        WT.shift{k} = keep(R, sprintf('%s, %d lb', WTn(k), WTw(k)));
+        if cyc.is_profile
+            T = load_profile_trace(cyc.route, 'Tons', CO.LoadedTons, 'Ambient_C', CO.Ambient_C);
+            R = run_cemex(T, 'LocoLb', WTw(k), 'soc0', 0.60, 'Plot', false, 'Silent', true);
+            WT.desc{k} = keep(R, sprintf('Loaded descent, %d lb', WTw(k)));
+        end
+    end
+    SIM.WT = WT;
+    save(cache, 'SIM');
+end
+
 if need('C3')
     fprintf('Acceleration runs...\n');
     runs = {
@@ -390,6 +411,28 @@ for k = 1:numel(g5runs)
 end
 writetable(heatT, fullfile(o.Out, 'G5_heat_rejection.csv'));
 
+% Weight sweep results
+WT = SIM.WT;
+wtT = table();
+for k = 1:numel(WT.w)
+    Pw = cemex_params(struct('loco_lb', WT.w(k)));
+    ml = Pw.veh.m_loco;
+    TEd = cemex_capability(Pw, 0, 'Mode', 'start'); TEwt = cemex_capability(Pw, 0, 'Mode', 'start', 'Mu', 0.18);
+    sg = @(TE, tons) 100*(TE/((ml + tons*tonkg)*g) - Pw.veh.Crr);
+    Fb = Pw.lcc.mu_adh*ml*g + Pw.lcc.k_tb*CO.LoadedTons*tonkg*g;      % locomotive to adhesion + train air
+    [~, xs] = stop_w(20*mps, ml, CO.LoadedTons*tonkg, crit_dn_loaded, Fb, Pw);
+    s = WT.shift{k}.C; r_ = struct('regen', NaN, 'air', NaN, 'grid', NaN);
+    if ~isempty(WT.desc)
+        dC = WT.desc{k}.C; r_ = struct('regen', dC.bat_in_regen_kWh, 'air', dC.train_air_kWh, 'grid', dC.grid_kWh);
+    end
+    wtT = [wtT; table(WTn(k), WT.w(k), WT.w(k)/6, TEd/lbf, TEwt/lbf, TEd/lbf - 98250, sg(TEd, CO.LoadedTons), sg(TEwt, CO.LoadedTons), ...
+        sg(TEd, CO.EmptyTons), 100*(Pw.lcc.mu_adh*ml/(ml + CO.LoadedTons*tonkg) + Pw.veh.Crr), xs/0.3048, s.bat_out_kWh, s.bat_in_regen_kWh, ...
+        100*s.soc_min, r_.regen, r_.air, r_.grid, 'VariableNames', {'case','loco_lb','axle_lb','start_TE_lbf','start_TE_wet_lbf', ...
+        'vs_SD60_lbf','start_grade_loaded','start_grade_loaded_wet','start_grade_empty','hold_grade_loco','stop_20mph_ft', ...
+        'shift_out_kWh','shift_regen_kWh','shift_soc_min','desc_regen_kWh','desc_air_kWh','desc_grid_kWh'})]; %#ok<AGROW>
+end
+writetable(wtT, fullfile(o.Out, 'B2_C7_weight_sweep.csv'));
+
 % ---------------- Figures ----------------
 fig_te(fullfile(o.Out, 'fig_D1_te_vs_speed.png'));
 fig_shift(SH.base, fullfile(o.Out, 'fig_C2_base_shift.png'));
@@ -430,7 +473,7 @@ tbl({'Item', 'Value', 'Basis'}, {
     'Short-time traction', sprintf('%.2f MW (6 × 655 kW, chopper rating)', 6*0.655), '`MotorCapkW` 655 option, discharge limit 0.81C'
     'Full power available up to', sprintf('%.0f mph', v_pow_end), 'armature voltage limit above that (750 V per motor)'
     'Route top speed', sprintf('%.0f mph', cyc.speed_range_mph(2)), 'route profile'
-    'Locomotive weight / axle load', sprintf('%s lb / %s lb', th(c.loco_lb), th(c.loco_lb/6)), 'ASSUMED (weight study pending)'
+    'Locomotive weight / axle load', sprintf('%s lb / %s lb', th(c.loco_lb), th(c.loco_lb/6)), sprintf('assumed; weight study gives %s lb lower bound at this battery size (see Locomotive weight)', th(round(cemex_weight(P.sys.cemex.E_bol_kWh).total_lb, -2)))
     'Dimensions', 'not in the model', 'mechanical design'
     });
 
@@ -646,6 +689,38 @@ w('- **A 77:17 regear** (the SD60 ratio) raises continuous TE to %s lbf and cros
 w('- **Closing the rest of the gap at 10 mph** takes more current than the D77 continuous rating (1,050 A), or a larger motor (D87/D90). Matching the SD60 low-speed rating is a motor and blower decision, not a battery or power question: the battery locomotive has about %.0f %% more rail power.', 100*(P_rail/745.7/(RF(1).tc*RF(1).vc/375) - 1));
 w('- **Starting TE depends on weight and adhesion, not the motors.** Six D77s at their 5-minute current give %s lbf. The value in the table is adhesion-limited at μ %.2f on the placeholder weight. The SD60''s published figure assumes 25 %% on about 393,000 lb. At SD60 weight (368,000 lb) the battery locomotive would start at %s lbf, so it needs its battery ballast (%s lb is within the 70,000 lb axle load) or better adhesion from per-axle control (D2) to match.', ...
     th(motor_TE0/lbf), P.lcc.mu_adh, th(P.lcc.mu_adh*368000), th(c.loco_lb));
+w('');
+
+w('## Locomotive weight (B2, C7, D1, D4)');
+w('');
+Wst = cemex_weight(P.sys.cemex.E_bol_kWh);
+w('**Weight estimate.** From Voltify''s battery locomotive weight study (SD40 core):');
+w('');
+w('- a fixed %s lb for the frame, trucks, six DC traction motors, compressor, grids, charger, pantographs and power electronics;', th(Wst.fixed_lb));
+w('- plus %.1f lb per kWh of installed battery (packs, racks and thermal management).', Wst.lb_per_kWh);
+w('');
+w('At %s kWh that gives **%s lb (%s lb per axle)**. This is a lower bound: the study lists the cab, inverter, cabling, breakers and contactor panels without weights. The simulations use %s lb.', ...
+    th(P.sys.cemex.E_bol_kWh), th(Wst.total_lb), th(Wst.axle_lb), th(c.loco_lb));
+w('');
+w('Weight sets adhesion, so it sets starting tractive effort and how much braking the locomotive can do on its own. Motor ratings and power don''t change.');
+w('');
+rows = {};
+for i = 1:height(wtT)
+    r = wtT(i, :);
+    rows(end+1, :) = {sprintf('%s', r.case), th(r.loco_lb), th(r.axle_lb), th(r.start_TE_lbf), sprintf('%+s', th(r.vs_SD60_lbf)), ...
+        sprintf('%.2f / %.2f', r.start_grade_loaded, r.start_grade_loaded_wet), sprintf('%.2f', r.start_grade_empty), sprintf('%.2f', r.hold_grade_loco), ...
+        stopf(r.stop_20mph_ft, true), th(r.desc_regen_kWh), th(r.desc_air_kWh)}; %#ok<AGROW>
+end
+tbl({'Case', 'Weight lb', 'Axle lb', 'Starting TE lbf (μ 0.25)', 'vs SD60 98,250', 'Loaded start grade % dry / wet', 'Empty start grade %', ...
+    'Loco-only hold % (loaded)', sprintf('Stop from 20 mph on %.2f %%, ft', crit_dn_loaded), 'Descent regen kWh', 'Descent train air kWh'}, rows);
+i368 = 1; ist = 2;
+w('- **Starting tractive effort vs the SD60:** at the SD60''s own weight the battery locomotive starts %s lbf below it at the same 25 %% adhesion; the SD60''s 98,250 lbf corresponds to about 393,000 lb. At the weight-study estimate it is %s lbf %s.', ...
+    th(abs(wtT.vs_SD60_lbf(i368))), th(abs(wtT.vs_SD60_lbf(ist))), iff(wtT.vs_SD60_lbf(ist) >= 0, 'above', 'below'));
+w('- **Route capability doesn''t depend on it:** across the whole range the empty train restarts on more than %.1f %% (route climb %.2f %%), and every shift completes with the same energy (%s-%s kWh out).', ...
+    min(wtT.start_grade_empty), crit_up_empty, th(min(wtT.shift_out_kWh)), th(max(wtT.shift_out_kWh)));
+w('- **Heavier brakes more electrically:** on the loaded descent the car air brakes carry %s kWh at %s lb and %s kWh at %s lb, because more locomotive weight means more adhesion for regen.', ...
+    th(wtT.desc_air_kWh(1)), th(wtT.loco_lb(1)), th(wtT.desc_air_kWh(end)), th(wtT.loco_lb(end)));
+w('- **Axle load:** the base case is %s lb per axle. The 9.4 MWh build (%s lb per axle) would need track and bridge clearance.', th(wtT.axle_lb(3)), th(wtT.axle_lb(4)));
 w('');
 
 w('## D3: Brake blending');
@@ -1225,4 +1300,19 @@ if nargin < 2, comma = false; end
 if isinf(x), s = 'cannot stop';
 elseif comma, s = th(x);
 else, s = sprintf('%.0f', x); end
+end
+
+function [ts, xs] = stop_w(v0, m_loco, m_trail, gr, Fb, Pw)
+% Stopping time / distance with braking force Fb on grade gr (%), for a given locomotive and trailing mass.
+g = 9.81;
+m_eff = Pw.veh.k_rot_loco*m_loco + Pw.veh.k_rot_trail*m_trail;
+fres = @(v) (m_loco + m_trail)*g*(Pw.veh.Crr + gr/100) + 0.5*1.225*Pw.veh.CdA*v.^2;
+if Fb + fres(0) <= 0, ts = Inf; xs = Inf; return; end
+opt = odeset('Events', @(~, y) stop_ev(y), 'RelTol', 1e-6);
+[tt, yy] = ode45(@(~, y) [-(Fb + fres(y(1)))/m_eff; y(1)], [0 3600], [v0; 0], opt);
+ts = tt(end); xs = yy(end, 2);
+end
+
+function [val, term, dir] = stop_ev(y)
+val = y(1); term = 1; dir = -1;
 end

@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 17:59 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-28 18:06 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Route and inputs.** Duty cycle on the Black Mountain Quarry -> Victorville plant run profile (EMD SD40-2, 11.0 mi, 48 min loaded): loaded downhill as run, empty uphill on the same profile reversed, grades -2.71 % to +2.71 %. Loaded train 2,470 t; **assumed:** empty train 740 t (30 % of loaded), locomotive weight 420,000 lb, operating schedule. Re-run `cemex_rfi_report('Rerun', true)` when these are confirmed.
 
@@ -15,7 +15,7 @@ Locomotive as simulated: 6 axles (6 × D77 DC traction motors, 62:15, 40 in whee
 | Short-time traction | 3.93 MW (6 × 655 kW, chopper rating) | `MotorCapkW` 655 option, discharge limit 0.81C |
 | Full power available up to | 30 mph | armature voltage limit above that (750 V per motor) |
 | Route top speed | 19 mph | route profile |
-| Locomotive weight / axle load | 420,000 lb / 70,000 lb | ASSUMED (weight study pending) |
+| Locomotive weight / axle load | 420,000 lb / 70,000 lb | assumed; weight study gives 390,400 lb lower bound at this battery size (see Locomotive weight) |
 | Dimensions | not in the model | mechanical design |
 
 ## C1: Maximum sustained grade
@@ -208,6 +208,29 @@ What this shows:
 - **A 77:17 regear** (the SD60 ratio) raises continuous TE to 90,460 lbf and crosses the SD60 from 11.0 mph. Full continuous power then starts at 17.2 mph instead of 19.0 mph. The cost is top speed, which falls by the same 8.7 %; that doesn't matter on a 20 mph quarry line.
 - **Closing the rest of the gap at 10 mph** takes more current than the D77 continuous rating (1,050 A), or a larger motor (D87/D90). Matching the SD60 low-speed rating is a motor and blower decision, not a battery or power question: the battery locomotive has about 60 % more rail power.
 - **Starting TE depends on weight and adhesion, not the motors.** Six D77s at their 5-minute current give 126,328 lbf. The value in the table is adhesion-limited at μ 0.25 on the placeholder weight. The SD60's published figure assumes 25 % on about 393,000 lb. At SD60 weight (368,000 lb) the battery locomotive would start at 92,000 lbf, so it needs its battery ballast (420,000 lb is within the 70,000 lb axle load) or better adhesion from per-axle control (D2) to match.
+
+## Locomotive weight (B2, C7, D1, D4)
+
+**Weight estimate.** From Voltify's battery locomotive weight study (SD40 core):
+
+- a fixed 290,364 lb for the frame, trucks, six DC traction motors, compressor, grids, charger, pantographs and power electronics;
+- plus 17.1 lb per kWh of installed battery (packs, racks and thermal management).
+
+At 5,852 kWh that gives **390,440 lb (65,073 lb per axle)**. This is a lower bound: the study lists the cab, inverter, cabling, breakers and contactor panels without weights. The simulations use 420,000 lb.
+
+Weight sets adhesion, so it sets starting tractive effort and how much braking the locomotive can do on its own. Motor ratings and power don't change.
+
+| Case | Weight lb | Axle lb | Starting TE lbf (μ 0.25) | vs SD60 98,250 | Loaded start grade % dry / wet | Empty start grade % | Loco-only hold % (loaded) | Stop from 20 mph on -2.71 %, ft | Descent regen kWh | Descent train air kWh |
+|---|---|---|---|---|---|---|---|---|---|---|
+| SD60 reference weight | 368,000 | 61,333 | 92,031 | -6,219 | 1.53 / 1.05 | 4.78 | 1.93 | 685 | 954 | 134 |
+| Weight study at 5.85 MWh (lower bound) | 390,400 | 65,067 | 97,633 | -617 | 1.63 / 1.12 | 5.02 | 2.03 | 657 | 975 | 113 |
+| Base case (assumed) | 420,000 | 70,000 | 105,036 | 6,786 | 1.76 / 1.21 | 5.33 | 2.16 | 624 | 1,001 | 86 |
+| Weight of a 9.4 MWh build | 450,700 | 75,117 | 112,713 | 14,463 | 1.89 / 1.30 | 5.64 | 2.29 | 593 | 1,026 | 59 |
+
+- **Starting tractive effort vs the SD60:** at the SD60's own weight the battery locomotive starts 6,219 lbf below it at the same 25 % adhesion; the SD60's 98,250 lbf corresponds to about 393,000 lb. At the weight-study estimate it is 617 lbf below.
+- **Route capability doesn't depend on it:** across the whole range the empty train restarts on more than 4.8 % (route climb 2.71 %), and every shift completes with the same energy (2,194-2,285 kWh out).
+- **Heavier brakes more electrically:** on the loaded descent the car air brakes carry 134 kWh at 368,000 lb and 59 kWh at 450,700 lb, because more locomotive weight means more adhesion for regen.
+- **Axle load:** the base case is 70,000 lb per axle. The 9.4 MWh build (75,117 lb per axle) would need track and bridge clearance.
 
 ## D3: Brake blending
 
