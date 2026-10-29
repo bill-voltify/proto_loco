@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 21:18 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-28 21:39 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Route and inputs.** Duty cycle on the Black Mountain Quarry -> Victorville plant run profile (EMD SD40-2, 11.0 mi, 48 min loaded): loaded downhill as run, empty uphill on the same profile reversed, grades -2.71 % to +2.71 %. Loaded train 2,470 t; **assumed:** empty train 740 t (30 % of loaded), locomotive weight 420,000 lb, operating schedule. Re-run `cemex_rfi_report('Rerun', true)` when these are confirmed.
 
@@ -613,20 +613,70 @@ A fan or blower failure moves heat into the remaining paths and raises temperatu
 - cab HVAC rejection detail (inside the aux total)
 - thermal-runaway heat release, which belongs to the battery safety case, not the operating model
 
-**The rest of G5 comes from documents, not the model:** noise, waste, hazardous materials and battery handling. Sources on Drive (not reviewed here):
+### G5: Hazardous materials, battery handling, waste and noise
 
-- battery Safety Data Sheet (SDS)
-- battery system hazard mitigation analysis
-- fire suppression documentation
-- battery system user manual, which gives ≤ 80 dB(A) at 1 m for the stationary container, not the locomotive
+This part comes from the battery supplier's Safety Data Sheet (GHS rev. 10, 2025), the UN 38.3 test summary and the battery system user manual, not from the model. The battery racks on the locomotive are the same racks those documents cover.
 
-Locomotive noise needs a fan and blower acoustic estimate or a measurement.
+**Hazardous materials.** The cells are lithium iron phosphate (LFP). By weight, the racks are:
+
+- LiFePO4 cathode, 37 %
+- graphite, 19 %
+- electrolyte, about 21 %: ethylene carbonate 12.2 %, ethyl methyl carbonate 6.1 %, lithium hexafluorophosphate 3.2 %
+- copper 7.5 %, aluminium 4.6 %, polymer 5.5 %, other 4.8 %
+
+As supplied, the battery is an *article* under GHS and the OSHA Hazard Communication Standard. It carries no hazard pictogram or hazard statement, because nothing is released in normal use. LFP contains no nickel or cobalt. None of the listed ingredients is listed as a carcinogen by IARC or NTP, and none meets the PBT/vPvB criteria. The hazards come only from a damaged or abused cell:
+
+- electrolyte leakage: toxic, volatile and corrosive; skin and eye burns
+- in thermal runaway, venting of flammable and toxic gas (carbon monoxide and hydrogen, per the manual; hydrogen fluoride is also a known decomposition product of this electrolyte)
+
+Other fluids on the locomotive:
+
+- glycol-water coolant in the battery and power-electronics loops
+- refrigerant in the chiller modules
+- traction motor and gear lubricants, the same as on a diesel-electric
+
+Their SDSs will be supplied with the final component selection. There is no diesel fuel, engine oil or exhaust.
+
+**Transport.** The battery racks have passed UN 38.3 and ship as Class 9 dangerous goods (lithium-ion). The UN number and packing rules for delivering the complete locomotive will be confirmed with the carrier.
+
+**Battery handling, normal conditions** (SDS section 7 and the user manual):
+
+- Only trained, qualified people work on the battery. PPE is chosen from an NFPA 70E arc-flash assessment: insulating gloves, goggles, flame-resistant clothing, insulated tools.
+- Isolate the battery (open the string contactors and service disconnect) before work. Keep terminals covered, and keep metal objects off the modules.
+- Don't drop, puncture, crush, tip or immerse modules, and keep them away from heat, sparks and open flame. Take static precautions.
+- Storage out of the locomotive: dry and ventilated, ≤ 95 % RH non-condensing, at least 2 m from heat sources.
+  - average daily temperature ≤ 20 °C
+  - −20 to 45 °C for up to 1 month
+  - 0 to 35 °C for longer storage
+  - recharge periodically when stored for long periods
+
+**Emergency conditions:**
+
+- **Damaged, overheated or flooded module:** isolate it. Move it to a safe isolation area, monitor it for smoke, heat or leakage, and scrap it. Flooded modules are not reused.
+- **Electrolyte leak:** ventilate, keep people upwind, and remove ignition sources. Absorb the leak with dry sand or an inert absorbent, using spark-proof tools. First aid: flush eyes or skin with water for at least 15 minutes, move to fresh air, and get medical attention.
+- **Fire:** use water spray to fight the fire and to cool adjacent modules, not a solid stream. Heated modules can vent through their relief valves or rupture. Firefighters wear SCBA and work from a safe distance with cover. Contain the run-off water so it does not reach surface or ground water.
+- The locomotive's own fire detection and suppression are covered in Voltify's separate fire suppression documentation and battery hazard mitigation analysis. Thermal-runaway heat release is part of that safety case and is not in the operating model.
+
+**Waste.**
+
+- **In normal operation the battery produces no waste and no emissions.** It is a sealed system that releases no gas.
+- **Maintenance waste** is small: glycol coolant when it is changed, air filters, and refrigerant recovered by certified technicians during chiller service. Compared with a diesel locomotive there is no used engine oil, fuel filter or exhaust aftertreatment waste.
+- **At end of life** (about 70 % capacity, see E4), the racks are returned for recycling under national and local regulations; the SDS recommends returning them to the supplier. In California, lithium-ion batteries are universal waste and may not be landfilled. LFP is recycled for its copper, aluminium, graphite and lithium. A second-life stationary use is also possible. Voltify will give the take-back and recycling plan with the commercial offer.
+
+**Noise.**
+
+- The battery itself is silent. The noise sources are the same kind as on a diesel-electric, minus the engine: radiator and condenser fans, chiller compressors, traction motor blowers and the air compressor.
+- The supplier figure of ≤ 80 dB(A) at 1 m is for its stationary container, so it does not apply here.
+- Locomotive noise needs a fan and blower acoustic estimate, then a measurement against the applicable limits (40 CFR 201 / 49 CFR 210 for locomotives in interstate service; CEMEX site limits otherwise).
+- The duty affects this. On the Black Mountain cycle the radiator fans and chillers run hardest during plant charging and on hot afternoons. At idle there is no engine noise; only the cooling equipment runs, as needed.
+
+*Not reviewed: the user manual's later chapters (gas extinguishing agent, maintenance and inspection program). The Drive copies could only be read up to the fire-system chapter. They describe the stationary container and do not change the answers above.*
 
 ## Not answered by the model
 
 The model can't answer these RFI questions:
 
-- **G5 (non-thermal parts):** noise, waste, hazardous materials, battery handling (documents; see G5).
+- **G5 noise:** needs a fan and blower acoustic estimate or a measurement (see G5).
 - **A, B1/B3/B4, E5-E8, F1/F4-F6, G-J:** documentation and commercial items, not simulation.
 
 ## Files
