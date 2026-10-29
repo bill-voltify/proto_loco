@@ -1,6 +1,6 @@
 # CEMEX Victorville RFI #13544: simulation answers
 
-Generated 2026-10-28 18:13 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
+Generated 2026-10-28 18:31 by `cemex/cemex_rfi_report.m` from the CEMEX parallel model (CEMEX-A, built on GP40 proto RevE).
 
 > **Route and inputs.** Duty cycle on the Black Mountain Quarry -> Victorville plant run profile (EMD SD40-2, 11.0 mi, 48 min loaded): loaded downhill as run, empty uphill on the same profile reversed, grades -2.71 % to +2.71 %. Loaded train 2,470 t; **assumed:** empty train 740 t (30 % of loaded), locomotive weight 420,000 lb, operating schedule. Re-run `cemex_rfi_report('Rerun', true)` when these are confirmed.
 
@@ -41,6 +41,16 @@ Grade the locomotive can hold at constant speed on the continuous motor rating (
 - **Ambient temperature doesn't change it either, up to 48 °C.** The 46 °C shift ran with no derating: battery discharge factor 1.00, verdict OPTIMAL, condenser 57.2 °C (limit 65 °C).
 - The loaded direction has no real climb on this route (steepest +0.10 %).
 - The route's steepest empty climb is 2.71 % for 2.0 mi. The empty train (740 t) holds it at 28.3 mph on the continuous rating (limit at 10 mph: 4.14 %).
+
+**Short-time motor ratings (from the thermal model).** Time from a warm motor (80 °C) to 180 °C at constant current, 40 °C ambient. The model is lumped (one thermal mass, no winding hot spot), so it is optimistic for short-time duty: it gives 138 min at 1,150 A and 47 min at 1,500 A, where the D77's published ratings are 15 min and 5 min. Use the published ratings; the model's continuous point (1,050 A) matches.
+
+| Current per motor, A | Steady temperature °C | Time to 180 °C |
+|---|---|---|
+| 1,050 | 180 | continuous |
+| 1,150 | 208 | 138 min |
+| 1,300 | 254 | 77 min |
+| 1,500 | 325 | 47 min |
+
 
 ## C2: Duty-cycle simulation (Victorville route)
 
@@ -133,6 +143,20 @@ The coupler is never the limit for one locomotive: maximum drawbar pull is 105,0
 - **Dust.** Dust isn't a model input. In the model it shows up only as reduced adhesion (use the wet case) and radiator fouling (UA margin: the condenser runs 7.8 K under its limit at 46 °C).
 
 ![TE vs speed](fig_D1_te_vs_speed.png)
+
+**Ambient envelope** (base duty cycle, pack held at 25 °C while parked):
+
+| Ambient | Verdict | Condenser max °C (65) | PE margin K | Cell °C | Discharge derate factor | Cooling/heating kWh | Min SOC % |
+|---|---|---|---|---|---|---|---|
+| -10 °C | OPTIMAL | -10.0 | 66.7 | 16.6-25.0 | 1.00 | 64 | 78 |
+| 0 °C | OPTIMAL | 0.0 | 56.7 | 19.5-25.0 | 1.00 | 64 | 78 |
+| 40 °C | OPTIMAL | 51.9 | 13.1 | 25.0-28.0 | 1.00 | 164 | 78 |
+| 46 °C | OPTIMAL | 57.2 | 7.8 | 25.0-28.0 | 1.00 | 240 | 78 |
+| 48 °C | OPTIMAL | 58.9 | 6.1 | 25.0-28.0 | 1.00 | 242 | 78 |
+| 50 °C | OPTIMAL | 60.7 | 4.3 | 25.0-28.0 | 1.00 | 262 | 78 |
+| 52 °C | OK | 62.5 | 2.5 | 25.0-28.0 | 1.00 | 267 | 78 |
+
+Full performance with no derating from -10 °C to 50 °C. Above that, the verdict column shows how the margins close. Cold mornings are covered by the pack heater and conditioning on the charger; the cell stays inside its window.
 
 ## C7: Steepest grade to start, restart and hold
 
@@ -346,6 +370,17 @@ The loaded run down from Black Mountain (2,470 t, 11.0 mi, steepest -2.71 % for 
 
 ![Descent](fig_D6_descent.png)
 
+**How far the battery can brake a descent:** on this route the loaded descent adds 1.46 % SOC (91 kWh) per mile. Before regen cuts off at 92 %, that gives:
+
+| SOC at the top of the descent | Descent before regen cut-off |
+|---|---|
+| 40 % | 35.7 mi |
+| 60 % | 22.0 mi |
+| 80 % | 8.2 mi |
+| 90 % | 1.4 mi |
+
+Past that point the grids take over, so the descent length is not limited, only the share of energy recovered.
+
 ## E1: Battery
 
 | Item | Value |
@@ -446,6 +481,19 @@ Parked charging, pack preconditioned to 25 °C. The BMS charge limit is 2,198 A 
 
 ![Charging](fig_F2_charging.png)
 
+## F3: Utility demand (charging)
+
+Demand at the locomotive comes from the simulations. Utility-side values assume a wayside converter efficiency of 97 % and power factor 0.95; power factor, harmonics and the converter's input voltage come from the charger specification, not the model.
+
+| Scenario | Peak at locomotive kW | Peak at utility kW | Peak kVA | Utility kWh per event |
+|---|---|---|---|---|
+| Base duty cycle (2 MW plant windows) | 1,077 | 1,110 | 1,168 | 140 |
+| Charger at full rating (3 MW, F2) | 3,000 | 3,093 | 3,256 | - |
+| Full recharge 10 % -> 90 % at 3 MW | 3,000 | 3,093 | 3,256 | 4,925 |
+
+- **On the Black Mountain duty cycle the charger is a top-up.** The base shift takes 140 kWh at the utility (281 kWh per day at 2 shifts), because the loaded descent recharges the battery (E3).
+- **Size the service for the charger rating, not the duty cycle:** about 3,256 kVA for full-rate charging after an out-of-service day or a degraded-battery case. The plant microgrid (PV and battery storage) can cover the routine top-up and limit the utility demand charge.
+
 ## G5: Heat rejection (normal and emergency conditions)
 
 Heat the locomotive rejects to the surrounding air, rebuilt second by second from the simulated thermal states with the model's own heat-path equations. Seven paths:
@@ -506,6 +554,21 @@ A fan or blower failure moves heat into the remaining paths and raises temperatu
 - **traction motor blowers failed:** the shift completes inside all limits (motor 151 °C against 180 °C).
 - **VMS lost (radiator fans and chillers off):** the locomotive stops (146 min behind the trace) and heat rejection falls to almost nothing, but residual heat still crosses a limit (chopper fluid > 63 C).
 
+**Protective response for a PE radiator fan failure** (the one fault that crosses limits while running). Re-run with the fans failed at 40 °C and 43 °C, and at 46 °C with candidate responses applied:
+
+| Case | Charger coolant °C (55) | Inverter °C (60) | Chopper °C (63) | Charger kWh | Min SOC % | Verdict | Limit |
+|---|---|---|---|---|---|---|---|
+| PE fans failed, 40 C, base duty | 47.5 | 52.0 | 53.7 | 79 | 78 | OPTIMAL |  |
+| PE fans failed, 43 C, base duty | 50.5 | 55.0 | 56.7 | 81 | 78 | OPTIMAL |  |
+| Fault, 46 C: PE radiator fans failed | 53.5 | 60.9 | 61.7 | 80 | 78 | FAIL | inverter fluid > 60 C |
+| PE fans failed, 46 C: plant charging limited to 1,000 kW | 53.5 | 61.0 | 61.7 | 78 | 78 | FAIL | inverter fluid > 60 C |
+| PE fans failed, 46 C: no plant charging | - | 61.1 | 62.0 | 0 | 78 | FAIL | inverter fluid > 60 C |
+| PE fans failed, 46 C: no plant charging, traction 400 kW per motor | - | 60.9 | 61.6 | 0 | 78 | FAIL | inverter fluid > 60 C |
+
+- **With the fans failed, the limiting loop is the inverter**, heated by the auxiliary loads. At 46 °C it runs about 1.1 K over its 60 °C limit. Cutting plant charging or traction doesn't change it, because that heat isn't the cause.
+- **The locomotive can keep working with failed PE fans up to 43 °C ambient**: the shift completes inside all limits. Above that, the response is to shed auxiliary load (cab HVAC to minimum, compressor duty) or stop, and repair the fans.
+- On this route the response costs little energy: the locomotive finishes the shift on its own regen, so stopping plant charging is no loss.
+
 **Not modeled:**
 
 - radiator exhaust air temperature and flow (needs the radiator air-side data)
@@ -527,7 +590,6 @@ Locomotive noise needs a fan and blower acoustic estimate or a measurement.
 The model can't answer these RFI questions:
 
 - **D2:** individual-axle slip and slide control evidence.
-- **F3:** utility demand schedule. Peak charger demand is in F2.
 - **G5 (non-thermal parts):** noise, waste, hazardous materials, battery handling (documents; see G5).
 - **A, B1/B3/B4, E5-E8, F1/F4-F6, G-J:** documentation and commercial items, not simulation.
 

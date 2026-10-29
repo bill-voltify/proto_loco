@@ -125,6 +125,33 @@ if need('MOT')
     save(cache, 'SIM');
 end
 
+% Operating envelope (C6/C8) and PE-fan-failure derate (G5/D3)
+if need('ENV')
+    fprintf('Ambient envelope and PE fan derate runs...\n');
+    EV = struct();
+    for Ta = [48 50 52 0 -10]
+        fprintf('  ambient %g C\n', Ta);
+        R = run_cemex([], 'Cycle', {'Ambient_C', Ta}, 'Plot', false, 'Silent', true);
+        EV.(sprintf('amb_%s', strrep(num2str(Ta), '-', 'm'))) = keep(R, sprintf('Base shift at %g °C', Ta));
+    end
+    libE = read_fault_library(fullfile(fileparts(here), 'loco_system', 'faults', 'fault_library.csv'));
+    Fpe = libE; Fpe.enabled = double(Fpe.fault_id == "PE_FAN_FAIL");
+    dr = {
+        'pe_chg1000', 'PE fans failed, 46 C: plant charging limited to 1,000 kW', {'Ambient_C', 46, 'PlantCharge_kW', 1000}, {}
+        'pe_chg0',    'PE fans failed, 46 C: no plant charging',                   {'Ambient_C', 46, 'PlantCharge_kW', 0},    {}
+        'pe_chg0_tr', 'PE fans failed, 46 C: no plant charging, traction 400 kW per motor', {'Ambient_C', 46, 'PlantCharge_kW', 0}, {'MotorCapkW', 400}
+        'pe_43',      'PE fans failed, 43 C, base duty',                           {'Ambient_C', 43}, {}
+        'pe_40',      'PE fans failed, 40 C, base duty',                           {'Ambient_C', 40}, {}
+        };
+    for k = 1:size(dr, 1)
+        fprintf('  %s\n', dr{k, 2});
+        R = run_cemex([], 'Cycle', dr{k, 3}, dr{k, 4}{:}, 'Faults', Fpe, 'Plot', false, 'Silent', true);
+        EV.(dr{k, 1}) = keep(R, dr{k, 2});
+    end
+    SIM.ENV = EV;
+    save(cache, 'SIM');
+end
+
 if need('C3')
     fprintf('Acceleration runs...\n');
     runs = {
@@ -480,6 +507,55 @@ for Vm = VS
 end
 writetable(vsT, fullfile(o.Out, 'D1_motor_voltage_sweep.csv'));
 
+% Operating envelope, PE fan derate, short-time motor rating, descent length, utility demand (F3)
+EV = SIM.ENV;
+envT = table();
+envc = {SH.base, SH.hot46, EV.amb_48, EV.amb_50, EV.amb_52, EV.amb_0, EV.amb_m10};
+for k = 1:numel(envc)
+    x = envc{k};
+    envT = [envT; table(x.amb(1), string(x.M.verdict), string(x.M.limit), x.M.Tcond_max, x.M.pe_margin_K, x.M.Tcell_min, x.M.Tcell_max, ...
+        x.M.k_dis_min, x.M.E_tms_kWh, x.C.bat_out_kWh, 100*x.C.soc_min, x.C.time_below_ref_2mph_min, 'VariableNames', {'ambient_C','verdict','limit', ...
+        'Tcond_max_C','margin_K','Tcell_min_C','Tcell_max_C','k_dis_min','tms_kWh','bat_out_kWh','soc_min_pct','min_below_ref'})]; %#ok<AGROW>
+end
+envT = sortrows(envT, 'ambient_C');
+writetable(envT, fullfile(o.Out, 'C6_ambient_envelope.csv'));
+pdc = {EV.pe_40, EV.pe_43, SIM.G5.f_pe, EV.pe_chg1000, EV.pe_chg0, EV.pe_chg0_tr};
+peT = table();
+for k = 1:numel(pdc)
+    x = pdc{k};
+    chg_ = x.p_chg > 1e3; Tchg_ = max([x.Tsup(chg_); -Inf]);   % PE supply to the charger while charging
+    peT = [peT; table(string(x.name), string(x.M.verdict), string(x.M.limit), Tchg_, x.M.Tinv_out_max, x.M.Tchop_out_max, ...
+        x.C.bat_in_charger_kWh, 100*x.C.soc_min, 100*x.C.soc_end, x.C.time_below_ref_2mph_min, 'VariableNames', {'case','verdict','limit', ...
+        'Tchg_supply_C','Tinv_C','Tchop_C','charger_kWh','soc_min_pct','soc_end_pct','min_below_ref'})]; %#ok<AGROW>
+end
+writetable(peT, fullfile(o.Out, 'G5_pe_fan_derate.csv'));
+% short-time motor rating from the thermal model (lumped; the motor supplier's ratings govern)
+Ta_r = 40; T0_r = 80;
+strT = table();
+for Im = [1050 1150 1300 1500]
+    dTss = thp.R_m*(kk*Im)^2/thp.UA_mot;
+    q = (Ta_r + dTss - 180)/(Ta_r + dTss - T0_r);
+    if q <= 0 || dTss <= 180 - Ta_r, tmin = Inf; else, tmin = -tau_mot_min*log(q); end
+    strT = [strT; table(Im, dTss + Ta_r, tmin, 'VariableNames', {'I_per_motor_A','T_steady_C','min_80_to_180C'})]; %#ok<AGROW>
+end
+% descent length before the regen cut-off, from the 60 % SOC loaded run
+xd = DS.run{1}; mvd = xd.v > 0.1;
+soc_per_mi = (xd.soc(find(mvd, 1, 'last')) - xd.soc(find(mvd, 1)))/cyc.route_mi_one_way;
+kwh_per_mi = dsT.regen_kWh(1)/cyc.route_mi_one_way;
+dlT = table([0.4; 0.6; 0.8; 0.9], 'VariableNames', {'soc0'});
+dlT.miles_to_cutoff = (P.lcc.soc_reg_max - P.lcc.soc_reg_band - dlT.soc0)/soc_per_mi;
+% F3 utility demand: charger power at the locomotive, utility side via an assumed wayside converter
+eta_ws = 0.97; pf_ws = 0.95; shifts_day = 2;
+xb = SH.base; tgb = (xb.t(1):1:xb.t(end))'; pcb = interp1(xb.t, xb.p_chg, tgb);
+f3 = {
+    'Base duty cycle (2 MW plant windows)', max(pcb)/1e3, trapz(tgb, pcb)/3.6e6
+    'Charger at full rating (3 MW, F2)', max(CH.run{1}.p_chg)/1e3, NaN
+    'Full recharge 10 % -> 90 % at 3 MW', max(CH.run{1}.p_chg)/1e3, 0.80*P.sys.cemex.E_nom_kWh/0.98
+    };
+f3T = table(string(f3(:, 1)), cell2mat(f3(:, 2)), cell2mat(f3(:, 2))/eta_ws, cell2mat(f3(:, 2))/eta_ws/pf_ws, cell2mat(f3(:, 3)), cell2mat(f3(:, 3))/eta_ws, ...
+    'VariableNames', {'scenario','peak_loco_kW','peak_utility_kW','peak_kVA','kWh_per_event','utility_kWh_per_event'});
+writetable(f3T, fullfile(o.Out, 'F3_utility_demand.csv'));
+
 % ---------------- Figures ----------------
 fig_te(fullfile(o.Out, 'fig_D1_te_vs_speed.png'));
 fig_shift(SH.base, fullfile(o.Out, 'fig_C2_base_shift.png'));
@@ -553,6 +629,15 @@ for i = 1:2
             dn_, gc_, ln_, dn_, g_cont, acc.balance_mph(ia_), AC.(ac_).M.Tmotor_max);
     end
 end
+w('');
+
+w('**Short-time motor ratings (from the thermal model).** Time from a warm motor (80 °C) to 180 °C at constant current, 40 °C ambient. The model is lumped (one thermal mass, no winding hot spot), so it is optimistic for short-time duty: it gives %.0f min at 1,150 A and %.0f min at 1,500 A, where the D77''s published ratings are 15 min and 5 min. Use the published ratings; the model''s continuous point (1,050 A) matches.', strT.min_80_to_180C(2), strT.min_80_to_180C(4));
+w('');
+rows = {};
+for i = 1:height(strT)
+    rows(end+1, :) = {th(strT.I_per_motor_A(i)), sprintf('%.0f', strT.T_steady_C(i)), iff(isinf(strT.min_80_to_180C(i)), 'continuous', sprintf('%.0f min', strT.min_80_to_180C(i)))}; %#ok<AGROW>
+end
+tbl({'Current per motor, A', 'Steady temperature °C', 'Time to 180 °C'}, rows);
 w('');
 
 w('## C2: Duty-cycle simulation (Victorville route)');
@@ -634,6 +719,19 @@ w('  - Adhesion: TE is capped at μ × locomotive weight.');
 w('- **Dust.** Dust isn''t a model input. In the model it shows up only as reduced adhesion (use the wet case) and radiator fouling (UA margin: the condenser runs %.1f K under its limit at 46 °C).', 65 - H.Tcond_max_C);
 w('');
 w('![TE vs speed](fig_D1_te_vs_speed.png)');
+w('');
+
+w('**Ambient envelope** (base duty cycle, pack held at 25 °C while parked):');
+w('');
+rows = {};
+for i = 1:height(envT)
+    r = envT(i, :);
+    rows(end+1, :) = {sprintf('%g °C', r.ambient_C), char(r.verdict), sprintf('%.1f', r.Tcond_max_C), sprintf('%.1f', r.margin_K), sprintf('%.1f-%.1f', r.Tcell_min_C, r.Tcell_max_C), ...
+        sprintf('%.2f', r.k_dis_min), th(r.tms_kWh), sprintf('%.0f', r.soc_min_pct)}; %#ok<AGROW>
+end
+tbl({'Ambient', 'Verdict', 'Condenser max °C (65)', 'PE margin K', 'Cell °C', 'Discharge derate factor', 'Cooling/heating kWh', 'Min SOC %'}, rows);
+iopt = find(envT.verdict == "OPTIMAL" & envT.ambient_C > 40, 1, 'last'); hot_ok = envT.ambient_C(iopt);
+w('Full performance with no derating from %g °C to %g °C. Above that, the verdict column shows how the margins close. Cold mornings are covered by the pack heater and conditioning on the charger; the cell stays inside its window.', min(envT.ambient_C), hot_ok);
 w('');
 
 w('## C7: Steepest grade to start, restart and hold');
@@ -878,6 +976,16 @@ w('');
 w('![Descent](fig_D6_descent.png)');
 w('');
 
+w('**How far the battery can brake a descent:** on this route the loaded descent adds %.2f %% SOC (%s kWh) per mile. Before regen cuts off at %.0f %%, that gives:', 100*soc_per_mi, th(kwh_per_mi), 100*(P.lcc.soc_reg_max - P.lcc.soc_reg_band));
+w('');
+rows = {};
+for i = 1:height(dlT)
+    rows(end+1, :) = {sprintf('%.0f %%', 100*dlT.soc0(i)), sprintf('%.1f mi', dlT.miles_to_cutoff(i))}; %#ok<AGROW>
+end
+tbl({'SOC at the top of the descent', 'Descent before regen cut-off'}, rows);
+w('Past that point the grids take over, so the descent length is not limited, only the share of energy recovered.');
+w('');
+
 w('## E1: Battery');
 w('');
 tbl({'Item', 'Value'}, {
@@ -986,6 +1094,21 @@ tbl({'Condition', 'Peak MW', '10→80 % min', '20→90 % min', sprintf('%.0f→9
 w('![Charging](fig_F2_charging.png)');
 w('');
 
+w('## F3: Utility demand (charging)');
+w('');
+w('Demand at the locomotive comes from the simulations. Utility-side values assume a wayside converter efficiency of %.0f %% and power factor %.2f; power factor, harmonics and the converter''s input voltage come from the charger specification, not the model.', 100*eta_ws, pf_ws);
+w('');
+rows = {};
+for i = 1:height(f3T)
+    r = f3T(i, :);
+    rows(end+1, :) = {char(r.scenario), th(r.peak_loco_kW), th(r.peak_utility_kW), th(r.peak_kVA), iff(isnan(r.utility_kWh_per_event), '-', th(r.utility_kWh_per_event))}; %#ok<AGROW>
+end
+tbl({'Scenario', 'Peak at locomotive kW', 'Peak at utility kW', 'Peak kVA', 'Utility kWh per event'}, rows);
+w('- **On the Black Mountain duty cycle the charger is a top-up.** The base shift takes %s kWh at the utility (%s kWh per day at %d shifts), because the loaded descent recharges the battery (E3).', ...
+    th(f3T.utility_kWh_per_event(1)), th(f3T.utility_kWh_per_event(1)*shifts_day), shifts_day);
+w('- **Size the service for the charger rating, not the duty cycle:** about %s kVA for full-rate charging after an out-of-service day or a degraded-battery case. The plant microgrid (PV and battery storage) can cover the routine top-up and limit the utility demand charge.', th(f3T.peak_kVA(2)));
+w('');
+
 w('## G5: Heat rejection (normal and emergency conditions)');
 w('');
 w('Heat the locomotive rejects to the surrounding air, rebuilt second by second from the simulated thermal states with the model''s own heat-path equations. Seven paths:');
@@ -1056,6 +1179,24 @@ for i = 4:height(heatT)
     end
 end
 w('');
+w('**Protective response for a PE radiator fan failure** (the one fault that crosses limits while running). Re-run with the fans failed at 40 °C and 43 °C, and at 46 °C with candidate responses applied:');
+w('');
+rows = {};
+for i = 1:height(peT)
+    r = peT(i, :);
+    rows(end+1, :) = {char(r.case), iff(isinf(r.Tchg_supply_C), '-', sprintf('%.1f', r.Tchg_supply_C)), sprintf('%.1f', r.Tinv_C), sprintf('%.1f', r.Tchop_C), th(r.charger_kWh), sprintf('%.0f', r.soc_min_pct), char(r.verdict), char(r.limit)}; %#ok<AGROW>
+end
+tbl({'Case', 'Charger coolant °C (55)', 'Inverter °C (60)', 'Chopper °C (63)', 'Charger kWh', 'Min SOC %', 'Verdict', 'Limit'}, rows);
+amb_ok = [40 43]; ok_ = peT.verdict(1:2) ~= "FAIL";
+w('- **With the fans failed, the limiting loop is the inverter**, heated by the auxiliary loads. At 46 °C it runs about %.1f K over its 60 °C limit. Cutting plant charging or traction doesn''t change it, because that heat isn''t the cause.', max(peT.Tinv_C(3:end)) - 60);
+if any(ok_)
+    w('- **The locomotive can keep working with failed PE fans up to %g °C ambient**: the shift completes inside all limits. Above that, the response is to shed auxiliary load (cab HVAC to minimum, compressor duty) or stop, and repair the fans.', max(amb_ok(ok_)));
+else
+    w('- Even at 40 °C the inverter loop exceeds its limit, so a PE fan failure is stop-and-repair.');
+end
+w('- On this route the response costs little energy: the locomotive finishes the shift on its own regen, so stopping plant charging is no loss.');
+w('');
+
 w('**Not modeled:**');
 w('');
 w('- radiator exhaust air temperature and flow (needs the radiator air-side data)');
@@ -1078,7 +1219,6 @@ w('');
 w('The model can''t answer these RFI questions:');
 w('');
 w('- **D2:** individual-axle slip and slide control evidence.');
-w('- **F3:** utility demand schedule. Peak charger demand is in F2.');
 w('- **G5 (non-thermal parts):** noise, waste, hazardous materials, battery handling (documents; see G5).');
 w('- **A, B1/B3/B4, E5-E8, F1/F4-F6, G-J:** documentation and commercial items, not simulation.');
 w('');
